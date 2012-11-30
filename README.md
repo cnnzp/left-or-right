@@ -11,18 +11,22 @@ Click [here](http://cnnzp.github.com/left-or-right) to play.
 Or clone https://github.com/cnnzp/game-off-2012.git and open index.html to play.
 Make sure your browser support html5 canvas. 
 
+We recommend high version chrome and safari. IE is not supported.
+
 Screenshot
 ------------
-Oh!Collision
+Oh! Collision! 
+
 ![Oh!Collision](http://github.com/cnnzp/game-off-2012/raw/master/screenshot/1.png)
 
-Yeah!Here we are!
+Yeah! Here we are! 
+
 ![Yeah!Here we are!](http://github.com/cnnzp/game-off-2012/raw/master/screenshot/2.png)
 
 Used open source projects:
 ------------
-Colorbox: a html5 game engine which will be officially opened soon.
-Cocos2d-html: just geometry.js and distributing tool.
+ * Colorbox: a html5 game engine which will be officially opened soon.
+ * Cocos2d-html: just geometry.js and distributing tool.
 
 License:
 ------------
