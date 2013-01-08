@@ -19,7 +19,7 @@ var createOpenActor = function()
    var model = m.ProcedureModel.create({
      draw:function(m, painter)
      {
-       var ctx = painter.exec("sketchpad");
+       var ctx = painter.exec("getContext", "2d");
        
        nt.draw(ctx);
      }});
@@ -90,7 +90,7 @@ var OpenLevel = Level.extend(
                  {
                    //change cursor to hand
                    var painter = require("director").director().exec("defaultPainter");
-                   var canvas = painter.exec("sketchpad").canvas;
+                   var canvas = painter.exec("sketchpad");
 
                    canvas.style.cursor = "default";
                  }).bind(s));
@@ -101,7 +101,7 @@ var OpenLevel = Level.extend(
                  {
                    //change cursor to hand
                    var painter = require("director").director().exec("defaultPainter");
-                   var canvas = painter.exec("sketchpad").canvas;
+                   var canvas = painter.exec("sketchpad");
 
                    canvas.style.cursor = "pointer";
                  }).bind(s));

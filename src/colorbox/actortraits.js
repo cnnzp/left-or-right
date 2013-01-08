@@ -42,7 +42,7 @@ var animatorTrait = Trait.extend({
   removeAllAnimations:function()
   {
     this.exec("satelliteData", "_animator").exec("removeAllAnimations");
-  },
+  }
 });
 
 var msgUpdate = function(t, actor)
@@ -80,7 +80,7 @@ var messageTrait = Trait.extend({
   sendMessage:function(msg)
   {
     pipe.triggerEvent(this.exec("satelliteData", "_messageTrait")._pipe, msg);
-  },
+  }
 });
 
 var baseEventHandleTrait = Trait.extend({
@@ -97,7 +97,7 @@ var baseEventHandleTrait = Trait.extend({
       
       pEvt = sourcePort.query();
     }
-  },
+  }
 });
 
 var evtUpdate = function(t, actor)
@@ -111,6 +111,7 @@ var evtUpdate = function(t, actor)
   actor.exec("toDecideAllEvents", data._port, data._decider, actor, data._selfPipe);
 };
 
+//fixme: node may need has more than one decider
 var eventHandleTrait = baseEventHandleTrait.extend({
   initialize:function(param)
   {
@@ -124,9 +125,10 @@ var eventHandleTrait = baseEventHandleTrait.extend({
     else
       this._oriPipe = param.pipe;
 
-    if (undefined == param.decider && param.level)
+    if (undefined == param.decider)
     {
-      data._decider = param.level.exec("queryDecider", "decider");
+      //data._decider = param.level.exec("queryDecider", "commonDecider");
+      data._decider = require("director").director().exec("queryDecider", "commonDecider");
     }
     else
       this._decider = param.decider;
@@ -224,7 +226,7 @@ var eventHandleTrait = baseEventHandleTrait.extend({
       data._port = undefined;
       this.exec("unRegUpdate", evtUpdate);
     }
-  },
+  }
 });
 
 /*
@@ -377,7 +379,7 @@ var frameSeqTrait = Trait.extend({
   getModel:function()
   {
     return this.exec("satelliteData", "frame")._clipModel;
-  },
+  }
 });
 
 var emitterTrait = Trait.extend({
@@ -398,29 +400,20 @@ var emitterTrait = Trait.extend({
   getEmitter:function()
   {
     return this.exec("querySatelliteData", "emitter");
-  },
+  }
 });
 
-var buildingTrait = Trait.extend(
+var unitTrait = Trait.extend(
   {
-     initialize:function(param)
+     unitTraitInitialize:function(param)
      {
-       //EmitterComponent.superClass.init.call(this, param);
-       debug.assert(param.mapData, "parameter error");
         
-       this._mapData = param.mapData;
-       this.slot("__mapdata", param.mapData);
      },
      
-     isBuilding:function(host)
+     isUnit:function(host)
      {
         return true;
-     },
-     
-     mapData:function(host)
-     {
-       return this.slot("__mapdata");
-     },
+     }
   });
 
 var listenPortsTrait = Trait.extend(
@@ -483,15 +476,40 @@ var listenPortsTrait = Trait.extend(
         
         listenedPorts[name].callbacks.splice(idx, 1);
       }
-    },
+    }
   });
+
+
+var isoVerActorTrait = Trait.extend(
+  {
+    isoVerActorTraitInitailze:function(param)
+    {
+    },
+
+    emmitModels:function(v)
+    {
+      var m = this.exec("model");
+      var mat = this.exec("matrix");
+      
+      debug.assert(typeof(mat.tz) == "number", "logical error");
+
+      v.push({model:m, effect:{matrix:mat, vertical:true, z:mat.tz}});
+    },
+
+    emmitControlModels:function(v)
+    {
+      return this.exec("emmitModels", v);
+    },
+  }
+);
 
 exports.animatorTrait = animatorTrait;
 exports.emitterTrait = emitterTrait;
 exports.frameSeqTrait = frameSeqTrait;
 exports.messageTrait = messageTrait;
 exports.eventHandleTrait = eventHandleTrait;
-exports.buildingTrait = buildingTrait;
+exports.unitTrait = unitTrait;
 exports.listenPortsTrait = listenPortsTrait;
+exports.isoVerActorTrait = isoVerActorTrait;
 
 }};

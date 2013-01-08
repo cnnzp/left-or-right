@@ -19,7 +19,7 @@ __resources__["/__builtin__/util.js"] = {meta: {mimetype: "application/javascrip
     }
   }
 
-  Object.defineProperty(Object.prototype, 'identifier', {get:object_id_getter, configurable:true,});
+  Object.defineProperty(Object.prototype, 'identifier', {get:object_id_getter, configurable:true});
   
   /*
   Object.prototype.toString = (function(){
@@ -136,7 +136,7 @@ var util = {
     }
 
     return copy;
-  },
+  }
 };
 
 var ArrayIterator = function(array)
@@ -171,7 +171,7 @@ util.extend(ArrayIterator.prototype, {
   end:function()
   {
     return this._curIdx == this._array.length;
-  },
+  }
 });
 
 
@@ -194,13 +194,26 @@ if (!Object.freeze)
   Object.freeze = function(x){return x;};
 }
 
+if (Function.prototype.bind == undefined)
+{
+  Function.prototype.bind = function(obj)
+  {
+    var self = this;
+    
+    return function()
+    {
+      return self.apply(obj, Array.prototype.slice.call(arguments, 0));
+    };
+  };
+}
+
 /*
   add functional util reduce/map/forEach/some/filter to hashtable
 */
 
 /*
- * NodeList 不是一个数组，所以map等会调用到这里来。但是NodeList的length是enumerable，能被检索到。 如果在cb中删除nodelist中某一项，nodelist会同步更新，原来的第n项，之后会变成n-1
- * NodeList 不要使用这里的map和reduce等。
+ * NodeList 不是一个数组，所以map等会调用到这里来。但是NodeList的length是enumerable，能被检索到��如果在cb中删除nodelist中某一项，nodelist会同步更新，原来的第n项，之后会变成n-1
+ * NodeList 不要使用这里的map和reduce等��
 */
 
 var notSpecifiedValue = {};
@@ -318,6 +331,27 @@ Object.defineProperty(Object.prototype,
                         writable:true
                       });
 
+var isPropertyEnumerable = function(obj, propertyName)
+{
+  var pd = Object.getOwnPropertyDescriptor(obj, propertyName);
+  if (pd && (pd.enumerable == true))
+    return true;
+
+  var proto = Object.getPrototypeOf(obj);
+  if (undefined == proto)
+    return false;
+
+  return Object.isPropertyEnumerable(proto, propertyName);
+};
+
+Object.defineProperty(Object,
+                      "isPropertyEnumerable",
+                      {
+                        value:isPropertyEnumerable,
+                        enumerable:false,
+                        writable:true
+                      });
+                      
 module.exports = util;
 
 

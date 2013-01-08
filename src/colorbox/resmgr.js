@@ -6,7 +6,7 @@ var h = require("helper")
 
 
 var resMgrTrait = Trait.extend({
-  initialize:function()
+  initialize:function(param)
   {
     this.execProto("initialize");
     
@@ -43,7 +43,7 @@ var resMgrTrait = Trait.extend({
     if (this.slot("_res")[name])
     {
       this.slot("_resNum", this.slot("_resNum")-1);
-      if (this.slot("_res")[name].loaded)
+      if (this.slot("_res")[name].complete)
         this.slot("_loadedNum", this.slot("_loadedNum")-1);
 
       delete this.slot("_res")[name];
@@ -66,7 +66,7 @@ var resMgrTrait = Trait.extend({
   percent:function()
   {
     return this.slot("_loadedNum") / this.slot("_resNum");
-  },
+  }
   
 });
 

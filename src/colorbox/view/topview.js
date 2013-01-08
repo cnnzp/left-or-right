@@ -3,6 +3,8 @@ __resources__["/__builtin__/view/topview.js"] = {meta: {mimetype: "application/j
 var debug = require("debug");
 var util = require("util");
 var geo = require("geometry");
+var Klass = require("base").Klass;
+var transformableTrait = require("transformable").transformableTrait;
 
 var displaylist = [];
 var actorlist = [];
@@ -13,7 +15,7 @@ var view = function(painter, scene)
   displaylist.length = 0;
   actorlist.length = 0;
 
-  scene.exec("filt", actorlist, function(node){return true;});   
+  scene.exec("filt", actorlist, function(a){return a != undefined;});   
   
   actorlist.forEach(function(a)
                     {
@@ -22,7 +24,7 @@ var view = function(painter, scene)
 
   displaylist.sort(function(i1, i2)
                    {
-                     return i1[1].matrix.tz - i2[1].matrix.tz;
+                     return i1.effect.matrix.tz - i2.effect.matrix.tz;
                    });
 
   painter.exec("drawModels", displaylist);
@@ -36,7 +38,52 @@ var cmpZ =  function (n1, n2, painter)
   return ret;
 }
 
-exports.topView = view;
-view.comparator = cmpZ;
+var View = Klass.extend(
+  [transformableTrait.rename({initialize:"transformableTraitInitialize"})],
+  {
+    initialize:function(param)
+    {
+      this.execProto("initialize", param);
+      
+      this.exec("transformableTraitInitialize", require("director").timeStamp);
+
+      this.slot("comparator", cmpZ);
+    },
+
+    getPstnRelativeToModel:function(viewPstn, model, effect)
+    {
+      var mat = geo.matrixInvert(geo.matrixMult(this.exec("getGameToViewMatrix"), effect.matrix));
+
+      return geo.pointApplyMatrix(viewPstn, mat);
+    },
+
+    compareModel:function(painter, model1, matrix1, model2, matrix2)
+    {
+      if (matrix1.tz == undefined || matrix2.tz == undefined)
+        return 0;
+
+      return matrix1.tz - matrix2.tz;
+    },
+    
+    view:function(painter, scene)
+    {
+      var ctx = painter.exec("getContext", "2d");
+      ctx.save();
+      
+      var mat = this.exec("matrix");
+      ctx.setTransform(mat.a, mat.b, mat.c, mat.d, mat.tx, mat.ty);
+      
+      view(painter, scene);
+      
+      ctx.restore();
+    },
+    
+    getGameToViewMatrix:function()
+    {
+      return this.exec("matrix");
+    }
+  });
+
+exports.TopView = View;
 
 }};

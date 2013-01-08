@@ -55,14 +55,8 @@ function loadImage (src, type, callback)
   var img = new Image();
   img.src = src;
   
-  //FIXME: type?
-
-  img.loaded = false;
-
   img.onload = function()
   {
-    img.loaded = true;
-    
     if (callback)
       callback();
   }

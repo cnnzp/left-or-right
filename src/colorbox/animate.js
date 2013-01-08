@@ -162,7 +162,7 @@ var multl;
        arraynumber:objectnumber,
        numberobject:numberobject,
        numberarray:numberobject,
-       numbernumber:numbernumber,
+       numbernumber:numbernumber
      };
    };
 
@@ -442,7 +442,7 @@ var AnimationBase = Klass.extend(
     isPaused:function()
     {
       return this.slot("_isPaused") == true;
-    },
+    }
   }
 );
 
@@ -536,7 +536,7 @@ var Animation = AnimationBase.extend(
       value.value = this.slot("_timeline")(time);
 
       return [value];
-    },
+    }
 
   }
 );
@@ -690,7 +690,7 @@ var SequenceAnimation = AnimationBase.extend(
 
       debug.assert(animation, "canont find animation");
       return animation.exec("value", time);
-    },
+    }
   });
 
 var TimesAnimation = AnimationBase.extend(
@@ -774,7 +774,7 @@ var TimesAnimation = AnimationBase.extend(
       time = time % (this.slot("_animation").exec("totalTime") + this.slot("_interval"));
 
       return this.slot("_animation").exec("value", time);
-    },
+    }
   });
 
 var ParallelAnimation = AnimationBase.extend(
@@ -849,7 +849,7 @@ var ParallelAnimation = AnimationBase.extend(
                                           {
                                             return animation.exec("value", time);
                                           });
-    },
+    }
   });
 
 //helper util
@@ -1184,7 +1184,7 @@ var Animator = Klass.extend(
     {
       this.slot("_animations", []);
       return true;
-    },
+    }
   });
 
 exports.linear = linear;

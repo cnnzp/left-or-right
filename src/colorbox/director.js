@@ -8,8 +8,9 @@ var util = require("util")
   , painter = require("painter")
   , model = require('model')
   , globalClocker = require('clocker').globalClocker
-  , topview = view.topView
-  , geo = require("geometry");
+  , TopView = view.TopView
+  , geo = require("geometry")
+  , CommonEventDecider = require("eventdecider").CommonEventDecider
 
 /*----------------------------------------------------------------------------*/
 var Klass = require("base").Klass
@@ -54,7 +55,7 @@ var timeStamperTrait = Trait.extend({
   now:function()
   {
     return this.slot("_curTime");
-  },
+  }
 });
 
 var TimeStamper = Klass.extend([timeStamperTrait]);
@@ -78,6 +79,8 @@ function createMouseEvtHdl(d, type)
 
     evt.mouseX = e.x;
     evt.mouseY = e.y;
+    //evt.sourceEvt = e.sourceEvt;
+    evt.button = e.sourceEvt.button;
 
     d.exec("triggerEvent", evt);
   };
@@ -98,6 +101,7 @@ function createKeyEvtHdl(d, type)
 
     evt.key = e.key;
     evt.keyCode = e.keyCode;
+    //evt.sourceEvt = e.sourceEvt;
 
     d.exec("triggerEvent", evt);
   };
@@ -126,16 +130,16 @@ function transAndDraw(d, t)
     if (d.slot("_level"))
       d.slot("_level").exec("onActive", d);
     
-    d.slot("_preLevelPainter").exec("sketchpad").canvas.loaded = false;
+    d.slot("_preLevelPainter").exec("sketchpad").complete = false;
     d.slot("_preLevelModel", undefined);
-    d.slot("_nextLevelPainter").exec("sketchpad").canvas.loaded = false;
+    d.slot("_nextLevelPainter").exec("sketchpad").complete = false;
     d.slot("_nextLevelModel", undefined);
   
     d.slot("_setLevelList").splice(0, 1);
     if(d.slot("_setLevelList").length > 0)
     {
-      d.slot("_preLevelModel", model.ImageModel.create({image:d.slot("_preLevelPainter").exec("sketchpad").canvas}));
-      d.slot("_nextLevelModel", model.ImageModel.create({image:d.slot("_nextLevelPainter").exec("sketchpad").canvas}));
+      d.slot("_preLevelModel", model.ImageModel.create({image:d.slot("_preLevelPainter").exec("sketchpad")}));
+      d.slot("_nextLevelModel", model.ImageModel.create({image:d.slot("_nextLevelPainter").exec("sketchpad")}));
       setLevelInfo = d.slot("_setLevelList")[0];
       preLevel = d.slot("_level");
       nextLevel = setLevelInfo.nextLevel;
@@ -147,16 +151,16 @@ function transAndDraw(d, t)
     }
   }
 
-  if(preLevel && d.slot("_preLevelPainter").exec("sketchpad").canvas.loaded === false)
+  if(preLevel && d.slot("_preLevelPainter").exec("sketchpad").complete === false)
   {
     redrawLevel2Painter(preLevel, d.slot("_preLevelPainter"));
-    d.slot("_preLevelPainter").exec("sketchpad").canvas.loaded = true;
+    d.slot("_preLevelPainter").exec("sketchpad").complete = true;
     preLevel.exec("onDeactive");
   }
-  if(nextLevel && d.slot("_nextLevelPainter").exec("sketchpad").canvas.loaded === false)
+  if(nextLevel && d.slot("_nextLevelPainter").exec("sketchpad").complete === false)
   {
     redrawLevel2Painter(nextLevel, d.slot("_nextLevelPainter"));
-    d.slot("_nextLevelPainter").exec("sketchpad").canvas.loaded = true;
+    d.slot("_nextLevelPainter").exec("sketchpad").complete = true;
   }
 
   var displayList = transInfo.exec("trans", d.slot("_preLevelModel"), d.slot("_nextLevelModel"), t);
@@ -188,16 +192,16 @@ var directorTrait = Trait.extend({
     this.slot("_displayList", []);
     this.slot("_now", 0);
 
-    if (param.gameWorldToViewMatrix)
-      this.slot("_gameWorldToViewMatrix", param.gameWorldToViewMatrix);
-    else
-      this.slot("_gameWorldToViewMatrix", geo.identityMatrix());
-
     if (param.view)
       this.slot("_defaultView", param.view);
     else
-      this.slot("_defaultView", topview);
+      this.slot("_defaultView", TopView.create());
 
+    this.slot("_deciders", {});
+
+    this.exec("registerDecider", 'commonDecider', CommonEventDecider.create());
+    
+    
     this.exec("registerEvents");
 
     __instance__ = this;
@@ -248,7 +252,7 @@ var directorTrait = Trait.extend({
     }
   },
   
-  update:function(t, dt)
+  update:function(t)
   {
     //this.slot("_timeStamper").exec("stepForward", dt);
     this.slot("_timeStamper").exec("adjust", t);
@@ -256,7 +260,7 @@ var directorTrait = Trait.extend({
 
     //fixme:sound may be need adjust, global clocker will get real time
     //this.slot("_now", this.slot("_now") + 1);
-    this.slot("_now",  t);
+    this.slot("_now",  this.slot("_now")+1);
 
     //allways check mouseover, mouseout.
     if (!this.slot("_defaultPainter").exec("eventDecider").isMousePressed())
@@ -264,20 +268,24 @@ var directorTrait = Trait.extend({
       //createMouseEvtHdl(this, 'mouseMoved')();
     }
 
+    //after logic uddate
+    this.exec("decideEvents");
+
     if(this.slot("_setLevelList") && this.slot("_setLevelList").length > 0)
     {
       if(transAndDraw(this, t) == false)
         return;
     }
+
     if (this.slot("_level"))
     {
-      this.slot("_level").exec("update", t, dt);
+      this.slot("_level").exec("update", t);
       // this.slot("_displayList").length = 0;
       // this.slot("_level").exec("scene").exec("filt", this.slot("_displayList"), function(node){return !!node.exec("model");}); 
       
       this.slot("_defaultPainter").exec("clear");
       // this.slot("_defaultPainter").exec("redraw", this.slot("_displayList"));
-      this.slot("_defaultView")(this.slot("_defaultPainter"), this.slot("_level").exec("scene"));
+      this.slot("_defaultView").exec("view", this.slot("_defaultPainter"), this.slot("_level").exec("scene"));
     }
   },
   
@@ -308,10 +316,10 @@ var directorTrait = Trait.extend({
         this.slot("_preLevelPainter", painter.HonestPainter.create(sketchpad)); 
       }
       if(this.slot("_preLevelModel") == undefined)
-        this.slot("_preLevelModel", model.ImageModel.create({image:this.slot("_preLevelPainter").exec("sketchpad").canvas}));
+        this.slot("_preLevelModel", model.ImageModel.create({image:this.slot("_preLevelPainter").exec("sketchpad")}));
       
       if(this.slot("_preLevelPainter"))
-        this.slot("_preLevelPainter").exec("sketchpad").canvas.loaded = false;
+        this.slot("_preLevelPainter").exec("sketchpad").complete = false;
 
       if(!this.slot("_nextLevelPainter"))
       {
@@ -320,9 +328,9 @@ var directorTrait = Trait.extend({
         this.slot("_nextLevelPainter", painter.HonestPainter.create(sketchpad));
       }
       if(this.slot("_nextLevelModel") == undefined)
-        this.slot("_nextLevelModel", model.ImageModel.create({image:this.slot("_nextLevelPainter").exec("sketchpad").canvas}));
+        this.slot("_nextLevelModel", model.ImageModel.create({image:this.slot("_nextLevelPainter").exec("sketchpad")}));
       if(this.slot("_nextLevelPainter"))
-        this.slot("_nextLevelPainter").exec("sketchpad").canvas.loaded = false;
+        this.slot("_nextLevelPainter").exec("sketchpad").complete = false;
     }
   },
   
@@ -348,12 +356,12 @@ var directorTrait = Trait.extend({
 
   defaultPainterWidth:function()
   {
-    return this.slot("_defaultPainter").exec("sketchpad").canvas.width;
+    return this.slot("_defaultPainter").exec("sketchpad").width;
   },
   
   defaultPainterHeight:function()
   {
-    return this.slot("_defaultPainter").exec("sketchpad").canvas.height;
+    return this.slot("_defaultPainter").exec("sketchpad").height;
   },
   
   getCurrentLevelImgModel:function()
@@ -363,9 +371,37 @@ var directorTrait = Trait.extend({
     
     redrawLevel2Painter(this.slot("_level"), prePainter);
     
-    prePainter.exec("sketchpad").canvas.loaded = true;
-    return model.ImageModel.create({image:prePainter.exec("sketchpad").canvas});
+    prePainter.exec("sketchpad").complete = true;
+    return model.ImageModel.create({image:prePainter.exec("sketchpad")});
   },
+
+  decideEvents:function()
+  {
+    var type, deciders = this.slot("_deciders");
+
+    for (type in deciders)
+    {
+      if (!deciders.hasOwnProperty(type))
+        continue;
+
+      deciders[type].exec("decideEvent", this.exec("defaultPainter"), this.exec("defaultView"));
+    }
+  },
+  
+  registerDecider:function(type, decider)
+  {
+    this.slot("_deciders")[type] = decider;
+  },
+
+  removeDecider:function(type)
+  {
+    delete this.slot("_deciders")[type];
+  },
+
+  queryDecider:function(type)
+  {
+    return this.slot("_deciders")[type];
+  }
 });
 
 var Director = Klass.extend([directorTrait]);

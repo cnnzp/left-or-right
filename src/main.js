@@ -68,6 +68,8 @@ var createAllLevels = function()
 
 var runNextLevel = function()
 {
+   require("control").showControl();
+   require("control").nextlevel();
   document.getElementById("des").style.visibility = "visible";
 
   var director = require("director").director();
@@ -87,7 +89,7 @@ var runNextLevel = function()
   var leaveFun = levelTrans.leaveLevelTransGenerator(director, "left2right");
   var enterFun = levelTrans.enterLevelTransGenerator(director, "left2right");
   var transInfo = levelTrans.SetLevelSequenceTransition.create({ enterTrans:enterFun, leaveTime:1, enterTime:1000}); 
-  director.exec("setLevel", levels[curLevel], transInfo);
+  director.exec("setLevel", levels[curLevel]/*, transInfo*/);
 };
 
 var runCurLevelAgain = function()
@@ -99,7 +101,9 @@ var runCurLevelAgain = function()
   var leaveFun = levelTrans.leaveLevelTransGenerator(director, "left2right");
   var enterFun = levelTrans.enterLevelTransGenerator(director, "left2right");
   var transInfo = levelTrans.SetLevelSequenceTransition.create({ enterTrans:enterFun, leaveTime:1, enterTime:1000}); 
-  director.exec("setLevel", levels[curLevel], transInfo);
+   director.exec("setLevel", levels[curLevel]/*, transInfo*/);
+   
+   require("control").nextlevel();
 };
 
 var isLastLevel = function()
@@ -182,4 +186,5 @@ exports.isLastLevel = isLastLevel;
 exports.runNextLevel = runNextLevel;
 exports.runCurLevelAgain = runCurLevelAgain;
 
+require("control");
 }};

@@ -13,7 +13,7 @@ var Klass = Entity.clone(
     initialize:function()
     {
       //do nothing
-    },
+    }
   }, 
   function(){
     this.create = function(){
@@ -28,7 +28,7 @@ var Klass = Entity.clone(
       inst.create = undefined;
       inst.extend = undefined;
 
-      inst.class = this;
+      inst.Class = this;
 
       return inst;
     };  
@@ -68,7 +68,7 @@ var K1 = Klass.extend(undefined,
                         foo:function()
                         {
                           console.log("call K1 foo");
-                        },
+                        }
                       });
 var k1 = K1.create(1, 23, 3);
 k1.exec("foo");

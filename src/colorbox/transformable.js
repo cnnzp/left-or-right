@@ -111,7 +111,7 @@ var transformableTrait = Trait.extend({
   applyScaleX:function(sx)
   {
     var m = this.slot("__matrixs__")[0];
-    m.sx += sx;
+    m.sx *= sx;
     this.exec("__stepForwardTimeStamp__");
   },
 
@@ -125,7 +125,7 @@ var transformableTrait = Trait.extend({
   applyScaleY:function(sy)
   {
     var m = this.slot("__matrixs__")[0];
-    m.sy += sy;
+    m.sy *= sy;
     this.exec("__stepForwardTimeStamp__");
   },
 
@@ -140,8 +140,8 @@ var transformableTrait = Trait.extend({
   applyScale:function(sx, sy)
   {
     var m = this.slot("__matrixs__")[0];
-    m.sx += sx;
-    m.sy += sy;
+    m.sx *= sx;
+    m.sy *= sy;
     this.exec("__stepForwardTimeStamp__");
   },
 
@@ -286,7 +286,7 @@ var transformableTrait = Trait.extend({
   {
     this.slot("__timeStamper__").exec("stepForward");
     this.slot("__curStamp__", this.slot("__timeStamper__").exec("now"));
-  },
+  }
 });
 
 exports.transformableTrait = transformableTrait;

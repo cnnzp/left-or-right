@@ -109,10 +109,10 @@ var FrameAnimation = animate.AnimationBase.extend(
                     typeof(endFrame.x) == 'number' &&
                     typeof(endFrame.y == 'number')), "parameter error");
 
-      this.slot("_startX", startFrame.x * param.w);
-      this.slot("_startY", startFrame.y * param.h);
-      this.slot("_endX", endFrame.x == -1 ? -1 : endFrame.x * param.w);
-      this.slot("_endY", endFrame.y == -1 ? -1 : endFrame.y * param.h);
+      this.slot("_startX", startFrame.x);
+      this.slot("_startY", startFrame.y);
+      this.slot("_endX", endFrame.x == -1 ? -1 : endFrame.x);
+      this.slot("_endY", endFrame.y == -1 ? -1 : endFrame.y);
 
       debug.assert(typeof(param.totalTime) == "number" && typeof(param.interval) == "number", "parameter error!");
       this.slot("_totalTime", param.totalTime);
@@ -174,7 +174,7 @@ var FrameAnimation = animate.AnimationBase.extend(
       value.value = this.slot("_timeline")(percent);
 
       return [value];
-    },
+    }
   });
 
 /*
@@ -313,7 +313,7 @@ var DetailedFrameAnimation = animate.AnimationBase.extend(
       value.value = this.slot("_timeline")(t / this.slot("_totalTime"));
 
       return [value];
-    },
+    }
   });
 
 exports.FrameAnimation = FrameAnimation;

@@ -6,10 +6,11 @@ var Klass = require("base").Klass
 ,   transformableTrait = require("transformable").transformableTrait
 ,   eventHandleTrait = require("actortraits").eventHandleTrait
 ,   debug = require("debug")
+,   geo = require("geometry");
 
 /**
  * @iclass[Node Object]{
- *   精灵对象。
+ *   精灵对象��
  * }
  */
 
@@ -24,7 +25,7 @@ var Klass = require("base").Klass
  *    精灵实例
  * }
  * 
- *   精灵构造函数。 safd asdf 
+ *   精灵构造函数��safd asdf 
  *   
   * }
  */
@@ -44,7 +45,7 @@ var Klass = require("base").Klass
  *    }
  *    
  *    @param[p3 varargs]{
- *     可变参数，随便你。
+ *     可变参数，随便你��
  *    }
  *    @para{aslfdjal;fd}
  *    al;skdfja;lkfj 
@@ -60,7 +61,7 @@ var Klass = require("base").Klass
 
 /**
  *  @function[type]{
- *   获取精灵type属性。
+ *   获取精灵type属性��
  *  }
 */
 
@@ -72,11 +73,11 @@ var Klass = require("base").Klass
  *    @class[Node]
  *
  *    @param[type]{
- *       component名称。
+ *       component名称��
  *    }
  * 
  *    @param[component]{
- *       component对象。
+ *       component对象��
  *    }
  *  }
  */ 
@@ -116,6 +117,11 @@ var actorTrait = Trait.extend({
     return this.slot("_model");
   },
 
+  bbox:function(painter)
+  {
+    return geo.rectApplyMatrix(painter.exec("bbox", this.exec("model")), this.exec("matrix"));
+  },
+
   setModel:function(model)
   {
     var oldOne = this.slot("_model");
@@ -125,7 +131,13 @@ var actorTrait = Trait.extend({
   
   emmitModels:function(v)
   {
-    v.push([this.exec("model"), {matrix:this.exec("matrix")}]);
+    v.push({model:this.exec("model"), effect:{matrix:this.exec("matrix")}});
+    return v;
+  },
+
+  emmitControlModels:function(v)
+  {
+    v.push({model:this.exec("model"), effect:{matrix:this.exec("matrix")}});
     return v;
   },
 
@@ -137,7 +149,7 @@ var actorTrait = Trait.extend({
   //             });
   // },
                        
-  //FIXME: scene的处理貌似不是很妥当。在构造actor的时候可能不知道scene，每个actor都保存scene信息又显得多余，维护起来也麻烦。
+  //FIXME: scene的处理貌似不是很妥当。在构造actor的时候可能不知道scene，每个actor都保存scene信息又显得多余，维护起来也麻烦��
   getScene:function()
   {
     return this.slot("_scene");
@@ -149,7 +161,15 @@ var actorTrait = Trait.extend({
     this.slot("_scene", s);
     return oldS;
   },
-  
+
+  onActive:function()
+  {
+  },
+
+  onDeactive:function()
+  {
+  },
+
   //这里应该增加参数scene
   onEntered:function()
   {
@@ -204,8 +224,7 @@ var actorTrait = Trait.extend({
       this.slot("_satelliteData")[sname] = val;
       return val;
     }
-  },
-
+  }
 });
 
 var Actor = Klass.extend([
@@ -233,7 +252,42 @@ var NtreeNodeTrait = Trait.extend({
                              });
 
     this.slot("_actor", param.actor);
-    this.slot("_isInScene", false);
+  },
+
+  onActive:function(scene, level)
+  {
+    this.exec("forEachActor", 
+              function(c)
+              {
+                c.exec("onActive", scene, level);
+              });
+  },
+
+  onDeactive:function(scene, level)
+  {
+    this.exec("forEachActor", 
+              function(c)
+              {
+                c.exec("onDeactive", scene, level);
+              });
+  },
+  
+  onEntered:function(scene)
+  {
+    this.exec("forEachActor",
+              function(c)
+              {
+                c.exec("onEntered", scene);
+              });
+  },
+
+  onExit:function(scene)
+  {
+    this.exec("forEachActor",
+              function(c)
+              {
+                c.exec("onExit", scene);
+              });
   },
 
   parent:function()
@@ -254,16 +308,10 @@ var NtreeNodeTrait = Trait.extend({
   appendChild: function(child)
   {
     debug.assert(NTreeNode.isPrototypeOf(child), "parameter error");
+    debug.assert(child.slot("_parent") == undefined, "parameter error");
 
-    if (child.slot("_parent"))
-    {
-      child.slot("_parent").exec("removeChild", child);
-    }
-    
     this.slot("_children").push(child);
     child.slot("_parent",  this);
-    
-    child.slot("_isInScene", this.slot("_isInScene"));
     
     //update actor's deptransformable
     if (!child.slot("_actor"))
@@ -287,10 +335,6 @@ var NtreeNodeTrait = Trait.extend({
 
     if (depActor)
       child.slot("_actor").exec("setDepTransformable", depActor);
-     
-     //fixme: 并没有通知child的所有的孩子
-    if (this.slot("_isInScene") == true)
-      child.slot("_actor").exec("onEntered");
   },
   
   removeChild: function(child)
@@ -303,50 +347,130 @@ var NtreeNodeTrait = Trait.extend({
     
     var childActor = child.slot("_actor");
     if (childActor)
-     {
-        //fixme:并没有通知child的所有的孩子
-      if (child.slot("_isInScene") == true)
-        childActor.exec("onExit");
-
+    {
       childActor.exec("setDepTransformable", null);
     }
 
     child.slot("_parent", null);
     this.slot("_children").splice(idx, 1);
-    child.slot("_isInScene", false);
-  },
-  
-  traverse: function(f)
-  {
-    var children = this.exec("children");
-    if (this.slot("_actor"))
-      f(this.slot("_actor"));
-    
-    children.forEach(function(child, i)
-                     {
-                       child.exec("traverse", f);
-                     });
   },
 
-  //FIXME: 这里得到的是actor，而actor完全不知道他所属的那个node，这也就是完全丧失了对node的控制能力。
-  serializeChildren:function(arr, filter)
+  some:function(f)
   {
-    if (!filter)
+    var children = this.exec("children");
+    
+    if (true == f(this))
+      return true;
+
+    return children.some(function(child)
+                         {
+                           return child.exec("some", f);
+                         });
+  },
+
+  someActor:function(f)
+  {
+    var newf = function(n)
     {
-      this.exec("traverse", function (actor)
-                {
-                  arr.push(actor);
-                });
+      var a = n.exec("actor");
+      if (a)
+        return f(a);
+
+      return false;
+    };
+
+    return this.exec("some", newf);
+  },
+
+  //f   (prev, curnode) --> anything
+  reduce:function(f, initialize)
+  {
+    var bInitializeSupplied = arguments.length == 2;
+    var ret;
+
+    if (false == bInitializeSupplied)
+    {
+      ret = this;
     }
     else
     {
-      this.exec("traverse", function (actor)
-                {
-                  if (filter(actor))
-                    arr.push(actor);
-                });
+      ret = f(initialize, this);
     }
-    return arr;
+
+    var children = this.slot("_children");
+
+    ret = children.reduce(function(prev, cur)
+                          {
+                            return cur.exec("reduce", f, prev);
+                          },
+                          ret);
+
+    return ret;
+  },
+
+  reduceActor:function(f, initialize)
+  {
+    var newf = function(prev, curn)
+    {
+      var actor = curn.exec("actor");
+      if (actor)
+        return f(prev, actor);
+
+      return prev;
+    };
+
+    if (arguments.length == 2)
+      return this.exec("reduce", newf, initialize);
+    else
+      return this.exec("reduce", newf);
+  },
+
+  forEach:function(f)
+  {
+    var newf = function(prev, cur)
+    {
+      f(cur);
+    };
+
+    return this.exec("reduce", newf, undefined);
+  },
+
+  forEachActor:function(f)
+  {
+    var newf = function(prev, cur)
+    {
+      f(cur);
+    };
+
+    return this.exec("reduceActor", newf, undefined);
+  },
+
+  //FIXME: 这里得到的是actor，而actor完全不知道他所属的那个node，这也就是完全丧失了对node的控制能力��
+  serializeChildren:function(arr, filter)
+  {
+    return this.exec("reduce", 
+                     function(prev, n)
+                     {
+                       if (filter == undefined || filter(n))
+                         prev.push(n);
+
+                       return prev;
+                     },
+                     arr);
+  },
+
+  serializeChildrenActors:function(arr, filter)
+  {
+    return this.exec("reduce", 
+                     function(prev, n)
+                     {
+                       var actor = n.exec("actor");
+                       if (actor != undefined && (filter == undefined || filter(actor)))
+                         prev.push(actor);
+
+                       return prev;
+                     },
+                     arr);
   }
 });
 

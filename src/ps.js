@@ -4,6 +4,14 @@ var debug = require("debug");
 var geo = require("geometry");
 var Actor = require("node").Actor;
 var m = require("model");
+var h = require("helper");
+
+var parkImgs = {
+  red:h.loadImage("images/redpark.png"),
+  orangered:h.loadImage("images/redpark.png"),
+  blue:h.loadImage("images/bluepark.png"),
+  steelblue:h.loadImage("images/bluepark.png")
+};
 
 var isSamePstn = function(p1, p2)
 {
@@ -123,8 +131,8 @@ var parsePath = function(svgPathEle)
 };
 
 var colorMap = {
-   red:"rgba(255, 0, 0, 1)",
-   green:"rgba(0, 255, 0, 1)",
+  red:"rgba(255, 0, 0, 1)",
+  green:"rgba(0, 255, 0, 1)",
   blue:"rgba(0, 0, 255, 1)",
   orangered:"rgba(255, 69, 0, 1)",
   steelblue:"rgba(70, 130, 180, 1)"
@@ -163,8 +171,8 @@ var initPathProperty = function(path)
                                       val = parseInt(val);
                                    else if (parseFloat(val) == val)
                                       val = parseFloat(val);
-                                   else if (colorMap[val] != undefined)
-                                      val = colorMap[val];
+                                   // else if (colorMap[val] != undefined)
+                                   //    val = colorMap[val];
       
                                    path.userProps[name] = val;
                                 });
@@ -270,7 +278,7 @@ PS.prototype.getConnectedPS = function(){debug.assert(false, "cannot be here!")}
 
 var paintps = function(m, painter)
 {
-   var ctx = painter.exec("sketchpad");
+   var ctx = painter.exec("getContext", "2d");
    
   var allps = getAllPS(m.slot("ps"));
   //change hashmap to array
@@ -279,7 +287,42 @@ var paintps = function(m, painter)
                                    return allps[id];
                                  });
   
-  //first： draw all path
+   //second: draw all target point
+   allps.filter(function(ps)
+                {
+                   return ps.type == "path" && ps.svgPathEle.userProps.target != undefined;
+                })
+      .forEach(function(path)
+               {
+                 /*
+                  var pstn = path.svgPathEle.userProps.targetposition == "start" ? path.svgPathEle.getStartPstn() : path.svgPathEle.getEndPstn();
+                  var color = path.svgPathEle.userProps.targetcolor;
+                  ctx.save();
+                  ctx.fillStyle = color;
+                  ctx.beginPath();
+                  ctx.arc(pstn.x, pstn.y, 8, 0, Math.PI*2);
+                  ctx.fill();
+                  ctx.restore();
+                  */
+                  var pstn = path.svgPathEle.userProps.targetposition == "start" ? path.svgPathEle.getStartPstn() : path.svgPathEle.getEndPstn();
+                  var color = path.svgPathEle.userProps.targetcolor;
+                  var img = parkImgs[color];
+                  
+                  if (!img)
+                  {
+                     ctx.save();
+                     ctx.fillStyle = color;
+                     ctx.beginPath();
+                     ctx.arc(pstn.x, pstn.y, 8, 0, Math.PI*2);
+                     ctx.fill();
+                     ctx.restore();
+                  }
+                  else
+                     ctx.drawImage(img, pstn.x-img.width/2, pstn.y-img.height, img.width, img.height);
+
+               });
+   
+     //first： draw all path
   allps.filter(function(ps)
                {
                  return ps.type == "path";
@@ -289,23 +332,7 @@ var paintps = function(m, painter)
                path.paint(painter);
              });
 
-   //second: draw all target point
-   allps.filter(function(ps)
-                {
-                   return ps.type == "path" && ps.svgPathEle.userProps.target != undefined;
-                })
-      .forEach(function(path)
-               {
-                  var pstn = path.svgPathEle.userProps.targetposition == "start" ? path.svgPathEle.getStartPstn() : path.svgPathEle.getEndPstn();
-                  var color = path.svgPathEle.userProps.targetcolor;
-                  ctx.save();
-                  ctx.fillStyle = color;
-                  ctx.beginPath();
-                  ctx.arc(pstn.x, pstn.y, 8, 0, Math.PI*2);
-                  ctx.fill();
-                  ctx.restore();
-               });
-   
+  /*
   //third： draw all switcher
   //之后switcher会通过actor去绘制，这里就不需要了。
   allps.filter(function(ps)
@@ -316,6 +343,7 @@ var paintps = function(m, painter)
              {
                switcher.paint(painter);
              });
+  */
 };
 
 var getAllPS = function(ps)
@@ -407,7 +435,7 @@ Path.prototype.getEndpoint = function()
 
 var paintBezier = function(painter, pstns, lineWidth, strokeStyle)
 {
-   var ctx = painter.exec("sketchpad");
+  var ctx = painter.exec("getContext", "2d");
    
    ctx.save();
    
@@ -424,35 +452,47 @@ var paintBezier = function(painter, pstns, lineWidth, strokeStyle)
    ctx.restore();
 };
 
-Path.prototype.paint = function(painter)
+Path.prototype.paint = function(painter, color)
 {
-  var ctx = painter.exec("sketchpad");
+  var ctx = painter.exec("getContext", "2d");
 
+  ctx.save();
+
+  if (!color)
+    color = "black";
   // ctx.lineWidth = 5;
 
   var startPstn = this.svgPathEle.getStartPstn();
   var endPstn = this.svgPathEle.getEndPstn();
   var controls = this.svgPathEle.getControlPstns();
    
-   paintBezier(painter, this.svgPathEle.getPstns(), 5, "black");
+   paintBezier(painter, this.svgPathEle.getPstns(), 3, color);
   // ctx.save();
   // ctx.beginPath();
   // ctx.moveTo(startPstn.x, startPstn.y);
   // ctx.bezierCurveTo(controls[0].x, controls[0].y, controls[1].x, controls[1].y, endPstn.x, endPstn.y);
   // ctx.stroke();
-
+   
+   /*
   if (this.svgPathEle.userProps.target != undefined)
   {
     var pstn = this.svgPathEle.userProps.targetposition == "start" ? this.svgPathEle.getStartPstn() : this.svgPathEle.getEndPstn();
     var color = this.svgPathEle.userProps.targetcolor;
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(pstn.x, pstn.y, 8, 0, Math.PI*2);
-    ctx.fill();
-    ctx.restore();
+    var img = parkImgs[color];
+    
+    if (!img)
+    {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(pstn.x, pstn.y, 8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+    else
+      ctx.drawImage(img, pstn.x-img.width/2, pstn.y-img.height, img.width, img.height);
   }
-
+    */
   ctx.restore();
 };
 
@@ -540,7 +580,7 @@ Switcher.prototype.getJointPoint = function()
 
 var paintArrow = function(painter, pstn, radian, poleLen, arrowLen, color)
 {
-  var ctx = painter.exec("sketchpad");
+  var ctx = painter.exec("getContext", "2d");
   ctx.save();
   
   ctx.strokeStyle = color;
@@ -577,7 +617,7 @@ var paintArrow = function(painter, pstn, radian, poleLen, arrowLen, color)
  */
 var paintArrow1 = function(painter, startPstn, endPstn, width, height, fillStyle)
 {
-   var ctx = painter.exec("sketchpad");
+   var ctx = painter.exec("getContext", "2d");
    
    var radian = getRadianByVector(geo.ccpSub(endPstn, startPstn));
    
@@ -832,7 +872,7 @@ var getPathPstns = function(path, startLen, endLen, pstnCnt)
 
 var paintPaths = function(painter, pstns, strokeStyle)
 {
-   var ctx = painter.exec("sketchpad");
+  var ctx = painter.exec("getContext", "2d");
    
    ctx.save();
    

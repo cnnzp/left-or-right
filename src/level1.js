@@ -14,6 +14,7 @@ var Button = require("gui/button").Button;
 var continueActorCtor = require("continueactor").continueActorCtor;
 var ani = require("animate");
 var debug = require("debug");
+var controle = require("control");
 
 //获取所有需要放置train的path
 var getTrainPaths = function(ps)
@@ -191,10 +192,10 @@ var Level1 = Level.extend(
                        {
                          var pstn1 = path.svgPathEle.getPointAtLength(path.svgPathEle.getTotalLength() - 0.1);
 
-                         train.exec("translate", pstn.x, pstn.y);
+                         train.exec("translate", pstn.x, pstn.y, 1000);
                          train.exec("triggerEvent");
 
-                         train.exec("translate", pstn1.x, pstn1.y);
+                         train.exec("translate", pstn1.x, pstn1.y, 1000);
                          train.exec("triggerEvent");
 
 
@@ -204,10 +205,10 @@ var Level1 = Level.extend(
                        {
                          var pstn1 = path.svgPathEle.getPointAtLength(0.1);
                          
-                         train.exec("translate", pstn.x, pstn.y);
+                         train.exec("translate", pstn.x, pstn.y, 1000);
                          train.exec("triggerEvent")
                          
-                         train.exec("translate", pstn1.x, pstn1.y);
+                         train.exec("translate", pstn1.x, pstn1.y, 1000);
                          train.exec("triggerEvent");
                        }
                      });
@@ -220,7 +221,7 @@ var Level1 = Level.extend(
 
       //create start button
       var start = Button.create({level:this, cb:genOnClickStartButton(this), normalModel:m.TextModel.create({text:"start", fill:"rgb(255, 0, 0)"})});
-      scene.exec("addActor", start);
+      // scene.exec("addActor", start);
       this.slot("_startActor", start);
       start.exec("translate", 100, 20);
 
@@ -240,7 +241,7 @@ var Level1 = Level.extend(
                  {
                    //change cursor to hand
                    var painter = require("director").director().exec("defaultPainter");
-                   var canvas = painter.exec("sketchpad").canvas;
+                   var canvas = painter.exec("sketchpad");
 
                    canvas.style.cursor = "default";
                  }).bind(start));
@@ -251,7 +252,7 @@ var Level1 = Level.extend(
                  {
                    //change cursor to hand
                    var painter = require("director").director().exec("defaultPainter");
-                   var canvas = painter.exec("sketchpad").canvas;
+                   var canvas = painter.exec("sketchpad");
 
                    canvas.style.cursor = "hand";
                  }).bind(start));
@@ -278,7 +279,9 @@ var Level1 = Level.extend(
         ca.exec("addAnimation", showingSani);
         ca.exec("addAnimation", showingRani);
 
-        this.slot("_ca", ca);
+         this.slot("_ca", ca);
+         
+         require("control").levelOver();
       }
     },
     
@@ -286,7 +289,8 @@ var Level1 = Level.extend(
     {
       if (this.slot("_state") != "waiting")
         return;
-
+       
+       require("control").startPlay();
       this.slot("_trains")
         .forEach(function(train)
                  {
@@ -298,7 +302,7 @@ var Level1 = Level.extend(
 
       this.slot("_state", "running");
 
-      this.exec("scene").exec("removeActor", this.slot("_startActor"));
+      // this.exec("scene").exec("removeActor", this.slot("_startActor"));
     },
 
     isGameOver:function()

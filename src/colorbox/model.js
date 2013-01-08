@@ -38,7 +38,7 @@ var Model = Klass.extend(undefined,
                            copy:function()
                            {
                              return this;
-                           },
+                           }
                          },
 
                          function()
@@ -69,7 +69,7 @@ var CircleModel = Model.extend(undefined,
                                    //   this.slot("stroke", {r:255, g:255, b:0, a: 255});
 
                                    this.slot("type", "circle");
-                                 },
+                                 }
                                });
 
 var ConvexModel = Model.extend(undefined,
@@ -88,7 +88,7 @@ var ConvexModel = Model.extend(undefined,
                                    //   this.slot("stroke", {r:255, g:255, b:0, a: 255});
 
                                    this.slot("type", "convex");
-                                 },
+                                 }
                                });
 
 /*
@@ -129,34 +129,30 @@ var LineModel = Model.extend(undefined,
                                initialize:function(param)
                                {
                                  this.execProto("initialize", param);
-                                 
-                                 /*
-                                   m --> moveTo(x, y)
-                                   l --> lineTo(x, y) ...
-                                  */
+
+                                 debug.assert(param.l != undefined, "parameter error");
                                  this.slot("type", "line");
-                               },
+                               }
                              });
 
 var drawLineModel = function(model, painter)
 {
-  var ctx = painter.exec("sketchpad");
+  var ctx = painter.exec("getContext", "2d");
   
   ctx.save();
   
   setLineStyle(ctx, model);
 
-  var m = model.slot("m");
   var ls = model.slot("l");
-
+  
   ctx.beginPath();
-  ctx.moveTo(m.x, m.y);
-  ls.forEach(function(l)
-             {
-               ctx.lineTo(l.x, l.y);
-             });
-  ctx.stroke();
+  ctx.moveTo(ls[0].x, ls[0].y);
+  for (var i = 1; i<ls.length; i++)
+  {
+    ctx.lineTo(ls[i].x, ls[i].y);
+  }
 
+  ctx.stroke();
   ctx.restore();
 };
 
@@ -182,14 +178,7 @@ var getBBoxByPstns = function(pstns)
 
 var bboxOfLineModel = function(m, painter)
 {
-  var pstns = [m.slot("m")];
-  
-  m.slot("l").forEach(function(l)
-                       {
-                         pstns.push(l);
-                       });
-
-  return getBBoxByPstns(pstns);
+  return getBBoxByPstns(m.slot("l"));
 };
 
 var lineHittest = function(m, x, y, painter)
@@ -212,15 +201,9 @@ var lineHittest = function(m, x, y, painter)
 
   var lineWidth = m.slot("lineWidth");
   if (undefined == lineWidth)
-    lineWidth = painter.exec("sketchpad").lineWidth;
+    lineWidth = painter.exec("getContext", "2d").lineWidth;
 
-  var pstns = [m.slot("m")];
- 
-  m.slot("l").forEach(function(l)
-                      {
-                        pstns.push(l);
-                      });
-  
+  var pstns = m.slot("l");
   return pstns.some(function(p, i)
                     {
                       if (i == 0)
@@ -254,7 +237,7 @@ var ArcModel = Model.extend(undefined,
 
 var drawArcModel = function(m, painter)
 {
-  var ctx = painter.exec("sketchpad");
+  var ctx = painter.exec("getContext", "2d");
   
   ctx.save();
 
@@ -284,7 +267,7 @@ var arcHittest = function(m, x, y, painter)
   var radius = m.slot("radius");
   var lineWidth = m.slot("lineWidth");
   if (undefined == lineWidth)
-    lineWidth = painter.exec("sketchpad").lineWidth;
+    lineWidth = painter.exec("getContext", "2d").lineWidth;
 
   var r = Math.sqrt(x*x, y*y);
   //判断点是否在圆环内
@@ -334,7 +317,7 @@ var TextModel = Model.extend(undefined,
                                  //   this.slot("stroke", {r:255, g:255, b:0, a: 255});
 
                                  this.slot("type", "text");
-                               },
+                               }
                              });
 
 var defaultWidthForUnloaded = 100;
@@ -365,7 +348,7 @@ var ImageModel = Model.extend(undefined,
                                     this.slot("alpha", 1);
 
                                   this.slot("type", "image");
-                                },
+                                }
                               },
                               
                               function()
@@ -377,7 +360,7 @@ var ImageModel = Model.extend(undefined,
                                     if (arguments.length == 1)
                                     {
                                       var img = this.slot("image");
-                                      if (img.loaded)
+                                      if (img.complete)
                                         return img[key];
                                       else
                                         return key == "width" ? defaultWidthForUnloaded : defaultHeightForUnloaded;
@@ -536,7 +519,7 @@ var ClipModel = Model.extend(undefined,
                                               typeof(this.slot("w")) == 'number' &&
                                               typeof(this.slot("h")) == 'number' && 
                                               this.slot("model"), "ClipModel parameter error!");
-                               },
+                               }
                              });
 
 function getClipModelBoundingBox(model, painter)
@@ -553,7 +536,7 @@ var viewClipModel = (function()
                        {
                          debug.assert(model.slot("type") == 'clip' && model.slot("model"), 'bad model');
                          
-                         var pjs = painter.exec("sketchpad");
+                         var pjs = painter.exec("getContext", "2d");
 
                          var octx = pjs;//pjs.externals.context;
                          //octx.save();
@@ -590,7 +573,7 @@ function clipModelInside(model, x, y, painter)
                  painter);
 }
 
-require('painter').HonestPainter.register('clip', {bbox:getClipModelBoundingBox, draw:viewClipModel, inside:clipModelInside,});
+require('painter').HonestPainter.register('clip', {bbox:getClipModelBoundingBox, draw:viewClipModel, inside:clipModelInside});
 
 var ProcedureModel = Model.extend(
   undefined,
@@ -606,7 +589,7 @@ var ProcedureModel = Model.extend(
         this.slot("bbox", function(){return geo.rectMake(0, 0, 0, 0);});
       if (param.inside == undefined)
         this.slot("inside", function(){return false;});
-    },
+    }
   });
 
 var getProcModelbbox = function(m, painter)
@@ -631,7 +614,7 @@ var BuildingModel = function(alpha, model)
 {
    var draw = function(m, painter)
    {
-     var octx = painter.exec("sketchpad");
+     var octx = painter.exec("getContext", "2d");
       octx.save();
       
       if (m.slot("shelterSprites") && m.slot("shelterSprites").length > 0)
@@ -693,7 +676,7 @@ var CompositeModel = Model.extend(
                                       });
       
       return CompositeModel.create(param);
-    },
+    }
   },
 
   function(cls)
@@ -770,13 +753,13 @@ var moveRelative = function(ratioX, ratioY, m)
 
   return CompositeModel.create({
     matrix:mat,
-    models:[m],
+    models:[m]
   });
 }
 
 var drawCompositeModel = function(m, painter)
 {
-  var pjs = painter.exec("sketchpad");
+  var pjs = painter.exec("getContext", "2d");
   var mat = m.slot("matrix");
 
   pjs.save();

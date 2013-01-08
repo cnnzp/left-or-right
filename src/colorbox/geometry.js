@@ -45,7 +45,11 @@ var geometry =
       this.d = d;
       this.tx = tx;
       this.ty = ty;
-      this.tz = tz;
+      
+      if (tz == undefined)
+        this.tz = 0;
+      else
+        this.tz = tz;
     },
 
     ccp: function (x, y) 
@@ -558,7 +562,7 @@ var geometry =
       ,   tz = matrix.tz;
 
       return {sx:sx, sy:sy, radian:radian, tx:matrix.tx, ty:matrix.ty, tz:matrix.tz};
-    },
+    }
   };
 
 module.exports = geometry;

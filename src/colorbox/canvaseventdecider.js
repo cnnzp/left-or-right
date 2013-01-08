@@ -37,14 +37,16 @@ var onmousedown = function(evt)
       this.mouseReleased({
         x:this.lastEvt.x,
         y:this.lastEvt.y,
-        type:"mouseReleased"
+        type:"mouseReleased",
+        sourceEvt:this.lastEvt.sourceEvt
       });
   }
 
   this.lastEvt = {
     x:evtPstn.x,
     y:evtPstn.y,
-    type:"mousedown"
+    type:"mousedown",
+    sourceEvt:evt
   };
 
   if (this.mousePressed)
@@ -70,14 +72,16 @@ var onmouseup = function(evt)
       this.mouseClicked({
         x:this.lastEvt.x,
         y:this.lastEvt.y,
-        type:"mouseClicked"
+        type:"mouseClicked",
+        sourceEvt:this.lastEvt.sourceEvt
       });
   }
 
   this.lastEvt = {
     x:evtPstn.x,
     y:evtPstn.y,
-    type:"mousedup"
+    type:"mousedup",
+    sourceEvt:evt
   };
 
   if (this.mouseReleased)
@@ -95,6 +99,7 @@ var onmouseover = function(evt)
       x:evtPstn.x,
       y:evtPstn.y,
       type:"mouseover",
+      sourceEvt:evt
     });
 }
 
@@ -107,6 +112,7 @@ var onmouseout = function(evt)
       x:evtPstn.x,
       y:evtPstn.y,
       type:"mouseout",
+      sourceEvt:evt
     });
 }
 
@@ -144,7 +150,8 @@ var onmousemove = function(evt)
     this.mouseMoved({
       x:evtPstn.x,
       y:evtPstn.y,
-      type:"mousemove"
+      type:"mousemove",
+      sourceEvt:evt
     });
   }
 }

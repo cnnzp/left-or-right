@@ -266,7 +266,7 @@ var hvDraw = {
     var ctx = spad || painter.slot("_ctx");
     //var oldStyles = beginDrawMode(m, ctx);
     var i = m.slot("image");
-    if (i.loaded && i.naturalWidth != 0)
+    if (i.complete && i.naturalWidth != 0)
     {
       var w = m.slot("width");
       var h = m.slot("height");
@@ -275,7 +275,7 @@ var hvDraw = {
 
       if(alpha != gAlpha)
       {
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha *= alpha;
       }
 
       ctx.drawImage(i, 0, 0, w, h, 0, 0, w, h);
@@ -331,24 +331,32 @@ var hvDraw = {
   }
 };
 
-var honestViewTrait = Trait.extend({
+var doEffect = function(painter, effect)
+{
+  var ctx = painter.exec("getContext", "2d");
+  if (effect.alpha != undefined)
+    ctx.globalAlpha *= effect.alpha;
+  //fixme:need to support compositer
+};
+
+var honestPainterTrait = Trait.extend({
   initialize: function (param)
   {
     this.execProto("initialize");
 
     this.slot("_canvas", param);
-    this.slot("_ctx", this.slot("_canvas").getContext("2d"));
+    this.slot("_ctx", param.getContext("2d"));
     this.slot("_showUnloadedImage", true);
   },
 
   sketchpad: function()
   {
-    return this.slot('_ctx');
+    return this.slot('_canvas');
   },
 
-  canvas:function()
+  getContext:function(contextId)
   {
-    return this.slot("_canvas");
+    return this.slot("_canvas").getContext(contextId);
   },
 
   bbox: function (m)
@@ -475,15 +483,20 @@ var honestViewTrait = Trait.extend({
   // {
   //    this.exec("drawModel", node.exec("model"), node.exec("matrix"));
   // },                                    
-                                      
-  drawModel:function(model, mat)
+           
+  //model -> {matrix:mat, alpha:0.2 ...} -> drawtocanvas
+  drawModel:function(model, effect)
   {
      var t = model.slot("type");
      var f = hvDraw[t];
+    var mat = effect.matrix;
      
      var ctx = this.slot("_ctx");
      ctx.save();
-     ctx.transform(mat.a, mat.b, mat.c, mat.d, mat.tx, mat.ty);
+
+    doEffect(this, effect);
+
+    ctx.transform(mat.a, mat.b, mat.c, mat.d, Math.round(mat.tx), Math.round(mat.ty));
      
      //var ap = this.anchorPoint(model);
      //ctx.translate(-ap.x, -ap.y);
@@ -493,15 +506,17 @@ var honestViewTrait = Trait.extend({
      ctx.restore();
   },
 
+  //ms: [{model:model, effect:{matrix:mat, alpha:0.2...}} ...]
   drawModels:function(ms)
   {
     var self = this;
     ms.forEach(function(mp)
                {
-                 self.exec("drawModel", mp[0], mp[1].matrix);
+                 self.exec("drawModel", mp.model, mp.effect);
                });
   },
 
+  //[[matrix, model], [matrix, model] ...]
   drawDispList : function (list)
   {
     var ctx = this.slot("_ctx");
@@ -515,7 +530,7 @@ var honestViewTrait = Trait.extend({
       
       ctx.save();
       assert(f, "no draw function for type `" + t + "'");
-      ctx.transform(mat.a, mat.b, mat.c, mat.d, mat.tx, mat.ty);
+      ctx.transform(mat.a, mat.b, mat.c, mat.d, Math.round(mat.tx), Math.round(mat.ty));
 
       // var ap = this.anchorPoint(m);
       // ctx.translate(-ap.x, -ap.y);
@@ -530,14 +545,14 @@ var honestViewTrait = Trait.extend({
   {
     if (!this.slot("_evtDecider"))
     {
-      this.slot("_evtDecider", new CanvasEventDecider(this.exec("canvas")));
+      this.slot("_evtDecider", new CanvasEventDecider(this.exec("sketchpad")));
     }
 
     return this.slot("_evtDecider");
-  },
+  }
 });
 
-var HonestPainter = Klass.extend([honestViewTrait]);
+var HonestPainter = Klass.extend([honestPainterTrait]);
 
 
 HonestPainter.register = function (type, fs)

@@ -3,6 +3,12 @@ __resources__["/__builtin__/view/isometricview.js"] = {meta: {mimetype: "applica
 var debug = require("debug");
 var util = require("util");
 var geo = require("geometry");
+var Klass = require("base").Klass;
+var transformableTrait = require("transformable").transformableTrait;
+
+//var game2ViewMatrix = new geo.Matrix(0.8660254037844387, 0.5, -0.8660254037844387, 0.5, 0, 0);
+var game2ViewMatrix = new geo.Matrix(0.8944271909999159, 0.4472135954999579, -0.8944271909999159, 0.4472135954999579, 0, 0);
+var view2GameMatrix = geo.matrixInvert(game2ViewMatrix);
 
 //helper utilities
 var findsprite = function(scene, op)
@@ -30,7 +36,7 @@ var getBuildings = function(scene)
 {
   return findspritelist(scene, function(n)
                         {
-                          return true == n.tryExec("isBuilding");
+                          return true == n.tryExec("isUnit");
                         });
 };
 
@@ -38,8 +44,8 @@ var getSprites = function(scene)
 {
   return findspritelist(scene, function(n)
                         {
-                          return true != n.tryExec("isBuilding") &&
-                            n.exec("model") && "map" != n.exec("model").slot("type");
+                          return true != n.tryExec("isUnit") &&
+                            (true != n.tryExec("isMapActor"));
                         });
 };
 
@@ -48,175 +54,349 @@ var getMapSprite = function(scene)
   return findsprite(scene,
                     function(n)
                     {
-                      return n.exec("model") && n.exec("model").slot("type") == "map";
+                      return n.tryExec("isMapActor");
                     });
 };
 
-var getSpriteBBox = function(painter, sprite)
+var getDiBbox = function(di, painter)
 {
-  var bbox = geo.rectApplyMatrix(painter.exec("bbox", sprite.exec("model")), sprite.exec("matrix"));
-  
-  // var mapIvtMatrix = geo.matrixInvert(mapNode.exec("matrix"));
-  
-  // var bbox2map = geo.rectApplyMatrix(bbox, mapIvtMatrix);
-
-  return bbox;
+  return geo.rectApplyMatrix(painter.exec("bbox", di.model), di.effect.matrix);
 };
 
-var sortSpriteInBuildings = function(painter, mapData, ms, sprite)
+var adjustDisplaylist = function(displaylist)
 {
-  var bbox = getSpriteBBox(painter, sprite);
+  displaylist.forEach(function(d)
+                      {
+                        var effect = d.effect;
 
-  var standPstn = {
-    // x : bbox.left + bbox.width/2,
-    x:bbox.origin.x + bbox.size.width/2,
-    y:bbox.origin.y + bbox.size.height
-    // y : bbox.top + bbox.height
-  };
+                        var newMatrix = geo.matrixMult(game2ViewMatrix, effect.matrix);
+
+                        if (typeof(effect.z) == "number")
+                          geo.matrixTranslateBy(newMatrix, 0, -effect.z);
+
+                        if (effect.vertical == true && typeof(effect.z) == "number")
+                        {
+                          newMatrix.a = 1;
+                          newMatrix.b = 0;
+                          newMatrix.c = 0;
+                          newMatrix.d = 1;
+                        }
+                        effect.matrix = newMatrix;
+                      });
+
+  return displaylist;
+};
+
+/*
+  //因为斜视角下，垂直的图片实际在斜视角下，不是一个rect，所以这里统一使用四个点来表示。
+  //four points
+  1 2
+  4 3
+*/
+/*
+var getDiBBoxToMap = function(painter, mapNode, di)
+{
+  var bbox = getDiBbox(di, painter);
+
+  var mapmat = mapNode.exec("matrix");
+  var mapIvtMatrix = geo.matrixInvert(mapmat);
   
-  var intersectMs = mapData.getEffectThingByBox(bbox);
-  
-  var nearestM;
-  intersectMs.filter(function(m)
-                     {
-                       return mapData.pointNearMapVSThing(standPstn.x, standPstn.y, m) <= 0;
-                     }).
-    forEach(function(m)
-            {
-              m.getUserData()["shelterSprites"].push(sprite);
-              if (!nearestM || mapData.thing1NearMapVSThing2(m, nearestM) <= 0)
-                nearestM = m;
-            });
-  
-  if (nearestM)
-    nearestM.getUserData()["sprites"].push(sprite);
+  var bbox2map = geo.rectApplyMatrix(bbox, mapIvtMatrix);
+
+  if (di.effect.vertical == true)
+  {
+    var p1 = geo.pointApplyMatrix(bbox2map.origin, game2ViewMatrix);
+    var p2 = {x:p1.x + bbox2map.size.width, y:p1.y};
+    var p3 = {x:p2.x, y:p1.y + bbox2map.size.height};
+    var p4 = {x:p1.x, y:p3.y};
+
+    return [p1,p2,p3,p4].map(function(p)
+                             {
+                               return geo.pointApplyMatrix(p, view2GameMatrix);
+                             });
+  }
   else
-    ms[ms.length-1].getUserData()["sprites"].push(sprite);
+  {
+    var p1 = bbox2map.origin;
+    var p2 = {x:p1.x + bbox2map.size.width, y:p1.y};
+    var p3 = {x:p2.x , y:p1.y + bbox2map.size.height};
+    var p4 = {x:p1.x, y:p3.y};
+
+    return [p1, p2, p3, p4];
+  }
+};
+*/
+
+var getDiBBoxToMap = function(painter, mapNode, di)
+{
+  var bbox = painter.exec("bbox", di.model);
+
+  var mapmat = mapNode.exec("matrix");
+  var mapIvtMatrix = geo.matrixInvert(mapmat);
+  
+  var bbox2map = geo.rectApplyMatrix(bbox, mapIvtMatrix);
+
+  if (di.effect.vertical == true)
+  {
+    var p1 = bbox.origin;
+    var p2 = {x:p1.x + bbox.size.width, y:p1.y};
+    var p3 = {x:p2.x, y:p1.y + bbox.size.height};
+    var p4 = {x:p1.x, y:p3.y};
+
+    return [p1,p2,p3,p4].map(function(p)
+                             {
+                               return geo.pointApplyMatrix(p, view2GameMatrix);
+                             })
+      .map(function(p)
+           {
+             return geo.pointApplyMatrix(p, di.effect.matrix);
+           })
+      .map(function(p)
+           {
+             return geo.pointApplyMatrix(p, mapIvtMatrix);
+           });
+  }
+  else
+  {
+    var p1 = bbox.origin;
+    var p2 = {x:p1.x + bbox2map.size.width, y:p1.y};
+    var p3 = {x:p2.x , y:p1.y + bbox2map.size.height};
+    var p4 = {x:p1.x, y:p3.y};
+
+    return [p1, p2, p3, p4]      
+      .map(function(p)
+           {
+             return geo.pointApplyMatrix(p, di.effect.matrix);
+           })
+      .map(function(p)
+           {
+             return geo.pointApplyMatrix(p, mapIvtMatrix);
+           });
+  }
 };
 
-var isSpriteNearthan = function(s1, s2, painter)
+var isDiNearThan = function(di1, di2, painter)
 {
-  var b1 = getSpriteBBox(painter, s1);
-  var b2 = getSpriteBBox(painter, s2);
+  var b1 = getDiBbox(di1, painter)
+  ,   b2 = getDiBbox(di2, painter);
 
   var pstn1 = {x:b1.origin.x + b1.size.width/2, y:b1.origin.y + b1.size.height}
   ,   pstn2 = {x:b2.origin.x + b2.size.width/2, y:b2.origin.y + b2.size.height};
-  
+
+  //var pstn1 = {x:(b1[2].x + b1[3].x)/2, y:(b1[2].y + b1[3].y)/2}
+  //,   pstn2 = {x:(b2[2].x + b2[3].x)/2, y:(b2[2].y + b2[3].y)/2};
+
   return Math.pow(pstn1.x, 2) + Math.pow(pstn1.y, 2) - Math.pow(pstn2.x, 2) - Math.pow(pstn2.y, 2);
+};
+
+//将displayitem插入到某个building中
+var sortDiInBuildings = function(painter, mapNode, di, farestDiContainer)
+{
+  var bbox = getDiBBoxToMap(painter, mapNode, di);
+
+  var standPstn = {
+    // x : bbox.left + bbox.width/2,
+    x:(bbox[2].x + bbox[3].x)/2,//bbox.origin.x + bbox.size.width/2,
+    y:(bbox[2].y + bbox[3].y)/2//bbox.origin.y + bbox.size.height
+    // y : bbox.top + bbox.height
+  };
+  
+  var intersectUs = mapNode.exec("getEffectUnitsByRegion", bbox);
+  
+  var nearestU;
+  intersectUs.filter(function(u)
+                     {
+                       return mapNode.exec("isPointNearUnit", standPstn.x, standPstn.y, u) <= 0;
+                       //return !(mapNode.exec("isPointNearUnit", bbox[3].x, bbox[3].y, u) <= 0 ||
+                       //mapNode.exec("isPointNearUnit", bbox[2].x, bbox[2].y, u) <= 0);
+                     }).
+    forEach(function(u)
+            {
+              mapNode.exec("getUnitUserData", u)["sheltereddl"].push(di);
+              if (!nearestU || mapNode.exec("isUnit1NearerUnit2", u, nearestU) <= 0)
+                nearestU = u;
+            });
+  
+  if (nearestU)
+    mapNode.exec("getUnitUserData", nearestU)["dl"].push(di);
+  else
+//    mapNode.exec("getUnitUserData", ms[ms.length-1])["sprites"].push(sprite);
+    farestDiContainer.push(di);
 };
 
 var sortRenderObjects = function(painter, mapNode, sprites)
 {
-  var mapData, ms;
-  
-  if (mapNode)
+  var dl = [];
+  sprites.forEach(function(s)
+                  {
+                    return s.exec("emmitModels", dl);
+                  });
+
+  if (!mapNode)
   {
-    mapData = mapNode.exec("model").slot("map");
-    ms = mapData.getThingMatters();
+    return {dl:dl.sort(function(di1, di2){return isDiNearThan(di1, di2, painter)})};
   }
-  
-  if (!mapNode || !ms || 0 == ms.length)
-    return {sprites:sprites.sort(function(n1, n2){return isSpriteNearthan(n1, n2, painter)})};
-  
-  //初始化挂载在matter上的数据
-  ms.forEach(function(m)
+
+  var farestDiContainer = [];
+
+  var us = mapNode.exec("getUnits");
+  us.forEach(function(u)
              {
-               var data = m.getUserData();
-               data["sprites"] = [];
-               data["shelterSprites"] = [];
+               var data = mapNode.exec("getUnitUserData", u);
+               data["dl"] = [];
+               data["sheltereddl"] = [];
                
-               m.setUserData(data);
+               mapNode.exec("setUnitUserData", u, data);
              });
-  
-  //将精灵插入到相应的building上，且得到标记会挡住该精灵的所有building
-  sprites.forEach(function(sprite)
-                  {
-                    sortSpriteInBuildings(painter, mapData, ms, sprite);
-                  });
-  
-  //排序所有精灵
-  ms.forEach(function(m)
+
+  dl.forEach(function(di)
              {
-               m.getUserData()["sprites"].sort(function(n1, n2){return isSpriteNearthan(n1, n2, painter)});
+               sortDiInBuildings(painter, mapNode, di, farestDiContainer);
              });
-  
-  return {ms:ms};
+
+  us.forEach(function(unit)
+             {
+               mapNode.exec("getUnitUserData", unit)["dl"].sort(function(di1, di2){return isDiNearThan(di1, di2, painter)});
+             });
+
+  farestDiContainer.sort(function(di1, di2){return isDiNearThan(di1, di2, painter)});
+
+  return {us:us, dl:farestDiContainer};
 };
 
-var view = function(painter, scene)
-{
-  var director = require("director").director();
-  // var scene = director.exec("getLevel").exec("scene");
-  var mapNode = getMapSprite(scene);
-  
-  //{ms:ms, sprites:sprites}
-  var os = sortRenderObjects(painter, mapNode, getSprites(scene));
+var Camera = Klass.extend([transformableTrait]);
 
-  //有的时候创建出了精灵，但是又希望遮挡关系还是通过matter进行，那么此时需要得到的matters中还是包含了这个精灵，但是渲染的时候，就直接扔给所对应的精灵进行渲染。
-  //如果matter没有对应精灵，那么会直接渲染model。
-  
-  //fixme: 这里不需要判断buildingsprite的model，直接画unit上的model，如果需要修改这个model，直接去修改unit上的model
-  // var buildingSprites = getBuildings(scene).reduce(function(ret, bs)
-  //                                                  {
-  //                                                    ret[bs.exec("mapData").identifier] = bs;
-  //                                                    return ret;
-  //                                                  },
-  //                                                  {});
-  
-  if (mapNode)
-    painter.exec("drawItem", mapNode);
-  
-  if (os.sprites)
-    os.sprites.forEach(function(s)
-                       {
-                         painter.exec("drawItem", s);
-                       });
-  
-  var mapNodeMatrix = mapNode.exec("matrix");
-  if (os.ms)
-    os.ms.forEach(function(m)
-                  {
-                    m.getUserData()["sprites"].forEach(function(s)
-                                                       {
-                                                         var displaylist = [];
-                                                         s.exec("emmitModels", displaylist)
-                                                         painter.exec("drawModels", displaylist);
-//                                                         painter.exec("drawItem", s);
-                                                       });
-                    
-                    // var bsprite = buildingSprites[m.identifier];
-                    // if (bsprite)
-                    // {
-                    //   bsprite.exec("model").slot("shelterSprites", m.getUserData()["shelterSprites"]);
-                    //   painter.exec("drawItem", bsprite);
-                    //   bsprite.exec("model").slot("shelterSprites", undefined);
-                    //   return;
-                    // }
-                    
-                    var model = m.getUserData()["basicModel"];
-                    model.slot("shelterSprites", m.getUserData()["shelerSprites"]);
-                    
-                    var matrix = model.mat;
-                    if (mapNodeMatrix)
-                      matrix = geo.matrixMult(mapNodeMatrix, matrix);
-                    
-                    painter.exec("drawModel", model, matrix);
-                    model.slot("shelterSprites", undefined);
-                  });
-};
+var View = Klass.extend(
+  [],
+  {
+    initialize:function(param)
+    {
+      this.execProto("initialize", param);
 
-var getGameWorldToViewMatrix = function(hMap)
-{
-  var mapWidth = hMap.getProperty("widthPx");
+      var camera = Camera.create(require("director").timeStamp);
+      this.slot("camera", camera);
 
-  return geo.Matrix(2,1,-2,1,mapWidth/2,0, 0);
-};
+      if (param && param.converter)
+        this.slot("_converter", param.converter);
+      else
+        this.slot("_converter", function(di){return di;});//display item
+    },
 
-view.comparator = isSpriteNearthan;
+    translate:function(x, y)
+    {
+      var pstn = geo.pointApplyMatrix({x:x, y:y}, game2ViewMatrix);
+      return this.slot("camera").exec("translate", pstn.x, pstn.y);
+    },
 
-exports.isometricView = view;
-//exports.sortRenderObjects = sortRenderObjects;
-exports.getGameWorldToViewMatrix = getGameWorldToViewMatrix;
+    applyTranslate:function(x, y)
+    {
+      var pstn = geo.pointApplyMatrix({x:x, y:y}, game2ViewMatrix);
+      return this.slot("camera").exec("applyTranslate", pstn.x, pstn.y);
+    },
 
+    getPstnRelativeToModel:function(viewPstn, model, effect)
+    {
+      var mat = geo.matrixInvert(geo.matrixMult(this.exec("getGameToViewMatrix"), effect.matrix));
+
+      var pstn = geo.pointApplyMatrix(viewPstn, mat);
+      
+      if (effect.vertical == true)
+      {
+        pstn = geo.pointApplyMatrix(pstn, game2ViewMatrix);
+      }
+
+      return pstn;
+    },
+
+    compareModel:function(painter, model1, matrix1, model2, matrix2)
+    {
+      return isDiNearThan({model:model1, effect:{matrix:matrix1}}, {model:model2, effect:{matrix:matrix2}}, painter);
+    },
+
+    /*
+    scale:function(x, y)
+    {
+      return this.slot("camera").exec("scale", x, y);
+    },
+
+    applyScale:function(x, y)
+    {
+      return this.slot("camera").exec("applyScale", x, y);
+    },
+
+    scaleX:function(s)
+    {
+      return this.slot("camera").exec("scaleX", s);
+    },
+
+    applyScaleX:function(s)
+    {
+      return this.slot("camera").exec("applyScaleX", s);
+    },
+
+    scaleY:function(s)
+    {
+      return this.slot("camera").exec("scaleY", s);
+    },
+
+    applyScaleY:function(s)
+    {
+      return this.slot("camera").exec("applyScaleY", s);
+    },
+    */
+    view:function(painter, scene)
+    {
+      var ctx = painter.exec("getContext", "2d");
+      ctx.save();
+      
+      var mat = this.slot("camera").exec("matrix");
+
+      ctx.setTransform(mat.a, mat.b, mat.c, mat.d, Math.round(mat.tx), Math.round(mat.ty));
+      
+      this.exec("_doView", painter, scene);
+      
+      ctx.restore();
+    },
+
+    _doView:function(painter, scene)
+    {
+      var view = this;
+
+      var mapNode = getMapSprite(scene);
+
+      //{us:units, dl:dl}  dl用来在地图上所有物件绘制完成之后才需要绘制的displaylist
+      var totalRenderers = sortRenderObjects(painter, mapNode, getSprites(scene));
+      
+      if (mapNode)
+      {
+        var displaylist = [];
+        mapNode.exec("emmitModels", displaylist);
+        painter.exec("drawModels", adjustDisplaylist(displaylist));
+      }
+
+      if (totalRenderers.us)
+        totalRenderers.us.forEach(function(unit)
+                                  {
+                                    var unitUserData = mapNode.exec("getUnitUserData", unit);
+                                    var dl = adjustDisplaylist(unitUserData["dl"]);
+
+                                    var di = view.slot("_converter")({model:mapNode.exec("getUnitModel", unit), effect:{matrix:mapNode.exec("matrix"), dl:unitUserData["sheltereddl"]}});
+
+                                    painter.exec("drawModels", dl);
+                                    painter.exec("drawModel", di.model, di.effect);
+                                  });
+
+      if (totalRenderers.dl)
+        painter.exec("drawModels", adjustDisplaylist(totalRenderers.dl));
+    },
+    
+    getGameToViewMatrix:function()
+    {
+      var mat = this.slot("camera").exec("matrix");
+      return geo.matrixMult(mat, game2ViewMatrix);
+    }
+  });
+
+exports.IsometricView = View;
 
 }};

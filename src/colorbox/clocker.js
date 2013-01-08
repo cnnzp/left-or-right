@@ -12,7 +12,7 @@ var g_clocker = {
       return 0;
   },
   
-  original:null,
+  original:null
 };
 
 var globalClocker = function(original)

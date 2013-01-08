@@ -19,18 +19,18 @@ var createTrainHeadModel = function(color)
 
   var draw1 = function(m, painter)
   {
-    painter.exec("drawModel", brainbox, geo.identityMatrix());
+    painter.exec("drawModel", brainbox, {matrix:geo.identityMatrix()});
   };
 
   var draw = function(m, painter)
   {
-    var ctx = painter.exec("sketchpad");
+    var ctx = painter.exec("getContext", "2d");
     
     ctx.save();
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
 
-    painter.exec("drawModel", brainbox, geo.identityMatrix());
+    painter.exec("drawModel", brainbox, {matrix:geo.identityMatrix()});
     
     ctx.beginPath()
     ctx.moveTo(radius, radius);
@@ -106,7 +106,7 @@ var TrainModel = Model.extend(
 
 var paintTrain = function(model, painter)
 {
-  var ctx = painter.exec("sketchpad");
+  var ctx = painter.exec("getContext", "2d");
 
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -141,10 +141,10 @@ var paintTrain = function(model, painter)
 
     var radian = geo.getVectorAngle({x:1, y:0}, geo.ccpSub(p2, p1))- Math.PI/2;
     if (radian)
-      painter.exec("drawModel", models[i], geo.matrixRotate(matrixes[i].newer, radian));
+      painter.exec("drawModel", models[i], {matrix:geo.matrixRotate(matrixes[i].newer, radian)});
     //matrixes[i] = msg.matrix;
     else
-      painter.exec("drawModel", model.slot("_models")[i], matrixes[i].newer);
+      painter.exec("drawModel", model.slot("_models")[i], {matrix:matrixes[i].newer});
   }
   
   ctx.restore();

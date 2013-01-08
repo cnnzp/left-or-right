@@ -152,7 +152,7 @@ var leaveLevelTransAnis =
      return animate.ParallelAnimation.create({
         animations:[ma]
         });
-    },
+    }
   };
   
 var enterLevelTransAnis = 
@@ -254,7 +254,7 @@ var enterLevelTransAnis =
       return animate.ParallelAnimation.create({
         animations:[ma]
         });
-    },
+    }
   };
 
 function transGenerator(ani)
@@ -327,7 +327,10 @@ var setLevelTransitionBaseTrait = Trait.extend({
   initialize:function()
   {
     this.execProto("initialize");
-      
+    
+    this.slot("_leaveTime", 0);
+    this.slot("_enterTime", 0);
+    this.slot("_elapsed", 0);
     return this;
   },
   
@@ -339,7 +342,7 @@ var setLevelTransitionBaseTrait = Trait.extend({
   isDone : function()
   {
     debug.assert(false, "SetLevelTransitionBase-->isDone can not exec");
-  },
+  }
 });
 
 var SetLevelTransitionBase = Klass.extend([setLevelTransitionBaseTrait]);
@@ -349,11 +352,17 @@ var setLevelParallelTransitionTrait = Trait.extend({
   {
     this.execProto("initialize");
     
-    this.slot("_leaveTime", param.leaveTime);
-    this.slot("_enterTime", param.enterTime);
-    this.slot("_leaveTrans", param.leaveTrans);
-    this.slot("_enterTrans", param.enterTrans);
-    this.slot("_elapsed", 0);
+    if(param.leaveTime != undefined)
+      this.slot("_leaveTime", param.leaveTime);
+      
+    if(param.enterTime != undefined)
+      this.slot("_enterTime", param.enterTime);
+    
+    if(param.leaveTrans != undefined)
+      this.slot("_leaveTrans", param.leaveTrans);
+    
+    if(param.enterTrans != undefined)
+      this.slot("_enterTrans", param.enterTrans);
     
     return this;
   },
@@ -367,10 +376,17 @@ var setLevelParallelTransitionTrait = Trait.extend({
   	
   	this.slot("_elapsed", t - this.slot("_startTime"));
   	
-  	percent = (t - this.slot("_startTime"))/this.slot("_leaveTime");
+  	if(this.slot("_leaveTime") == 0)
+  	  percent = 1
+  	else
+  	  percent = (t - this.slot("_startTime"))/this.slot("_leaveTime");
   	if(this.slot("_leaveTrans"))
   	  displayList = this.slot("_leaveTrans")(leaveImgModel, percent);
-  	percent = (t - this.slot("_startTime"))/ this.slot("_enterTime");
+  	
+  	if(this.slot("_enterTime") == 0)
+  	  percent = 1;
+  	else
+  	  percent = (t - this.slot("_startTime"))/ this.slot("_enterTime");
   	if(this.slot("_enterTrans"))
   	  displayList = displayList.concat(this.slot("_enterTrans")(enterImgModel, percent));
   	
@@ -381,7 +397,7 @@ var setLevelParallelTransitionTrait = Trait.extend({
   {
   	var totalTime = this.slot("_leaveTime") > this.slot("_enterTime") ? this.slot("_leaveTime") : this.slot("_enterTime")
   	return this.slot("_elapsed") >= totalTime;
-  },
+  }
 });
 
 var SetLevelParallelTransition = SetLevelTransitionBase.extend([setLevelParallelTransitionTrait]);
@@ -391,19 +407,24 @@ var setLevelSequenceTransitionTrait = Trait.extend({
   {
     this.execProto("initialize");
     
-    //if(param.leaveTime)
-    this.slot("_leaveTime", param.leaveTime);
-    this.slot("_enterTime", param.enterTime);
-    this.slot("_leaveTrans", param.leaveTrans);
-    this.slot("_enterTrans", param.enterTrans);
-    this.slot("_elapsed", 0);
+    if(param.leaveTime != undefined)
+      this.slot("_leaveTime", param.leaveTime);
+      
+    if(param.enterTime != undefined)
+      this.slot("_enterTime", param.enterTime);
+    
+    if(param.leaveTrans != undefined)
+      this.slot("_leaveTrans", param.leaveTrans);
+    
+    if(param.enterTrans != undefined)
+      this.slot("_enterTrans", param.enterTrans);
     
     return this;
   },
   
   trans:function(leaveImgModel, enterImgModel, t)
   {
-  	var percent, displayList = [];
+  	var percent = 0, displayList = [];
     
     
     if(this.slot("_startTime") === undefined)
@@ -411,7 +432,10 @@ var setLevelSequenceTransitionTrait = Trait.extend({
     
   	this.slot("_elapsed", t - this.slot("_startTime"));
   	
-  	percent = (t - this.slot("_startTime"))/this.slot("_leaveTime");
+  	if(this.slot("_leaveTime") == 0)
+  	  percent = 1;
+  	else
+  	  percent = (t - this.slot("_startTime"))/this.slot("_leaveTime");
   	if(this.slot("_elapsed") <= this.slot("_leaveTime") && this.slot("_leaveTrans"))
   	  displayList = this.slot("_leaveTrans")(leaveImgModel, percent);
   	else
@@ -428,7 +452,7 @@ var setLevelSequenceTransitionTrait = Trait.extend({
   {
   	var totalTime = this.slot("_leaveTime") + this.slot("_enterTime");
   	return this.slot("_elapsed") >= totalTime;
-  },
+  }
 });
 
 var SetLevelSequenceTransition = SetLevelTransitionBase.extend([setLevelSequenceTransitionTrait]);

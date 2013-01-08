@@ -12,9 +12,6 @@ var sceneTrait = Trait.extend({
   initialize:function(param)
   {
     this.execProto("initialize");
-    
-    this.slot("_timeStamper", TimeStamper.create());
-    this.slot("_pipe", pipe.createEventTrigger(this.slot("_timeStamper")));
   },
 
   addNode:function()
@@ -22,30 +19,25 @@ var sceneTrait = Trait.extend({
     debug.error('cannot be here');
   },
   
-  pipe:function()
+  onActive: function(level)
   {
-    return this.slot("_pipe");
-  },
-  
-  onActive: function(logic)
-  {
-    pipe.triggerEvent(this.slot("_pipe"), {eventType:'onActive'});
+    debug.error("cannot be here");
   },
   
   onDeactive: function()
   {
-    pipe.triggerEvent(this.slot("_pipe"), {eventType:'onDeactive'});
+    debug.error("cannot be here");
   },
   
-  update: function(t, dt)
+  update: function(t)
   {
-    this.exec("doUpdate", t,dt);
+    this.exec("doUpdate", t);
   },
   
   filt:function(filter)
   {
     debug.error('cannot be here');
-  },
+  }
 });
 
 var Scene = Klass.extend([sceneTrait]);
@@ -56,46 +48,96 @@ var treeSceneTrait = Trait.extend({
     this.execProto("initialize");
     
     this.slot("_root", NTreeNode.create({scene:this}));
-    this.slot("_root").slot("_isInScene", true);
 
-    this.slot("_filtChildren", []);
-    this.slot("_filtChildrenDirty", true);
-    this.slot("_filtPara", undefined);
-
-    var actorsMap = {};
-    this.slot("_actorsMap", actorsMap);
+    this.slot("_root").exec("onEntered");
   },
 
-  doUpdate: function (t, dt)
+  doUpdate: function (t)
   {
-    this.slot("_timeStamper").exec("stepForward", dt);
-    
-    this.slot("_root").exec("traverse", 
-                    function (node) 
+    this.slot("_root").exec("forEachActor", 
+                    function (a) 
                     { 
-                      node.tryExec("update", t,dt); 
+                      a.tryExec("update", t); 
                     });
   },
+
+  onActive: function(level)
+  {
+    var root = this.slot("_root");
   
+    if (root)
+      root.exec("onActive", this, level);
+  },
+  
+  onDeactive: function(level)
+  {
+    var root = this.slot("_root");
+    
+    if (root)
+      root.exec("onDeactive", this, level);
+  },
+
   addNode:function(node, path)
   {
     if (path === undefined)
-    {
-      this.slot("_root").exec("appendChild", node);
-    }
-    else
-    {
-      path.exec("appendChild", node);
-    }
+      path = this.slot("_root");
+
+    debug.assert(this.exec("isNodeInScene", path) == true, "path is not in this scene");
+
+    if (node.exec("parent") != undefined)
+      this.exec("removeNode", node);
     
-    this.slot("_filtChildrenDirty", true);
+    path.exec("appendChild", node);
+    
+    //trigger active and enter
+    var runningLevel = require("director").director().exec("getLevel")
+    ,   bRunningScene = runningLevel && (this == runningLevel.exec("scene"));
 
-    //update actorsmap
-    var actor = node.exec("actor")
-    ,   actorsMap = this.slot("_actorsMap");
+    if (bRunningScene)
+    {
+      node.exec("onActive", this, runningLevel);
+    }
 
-    if (actor)
-      actorsMap[actor.identifier] = node;
+    node.exec("onEntered", this);
+  },
+
+  isNodeInScene:function(n)
+  {
+    var root = this.slot("_root");
+    var bIn = false;
+
+    if (!root)
+      return false;
+
+    return root.exec("some", 
+                     function(n1)
+                     {
+                       return n1 == n;
+                     });
+  },
+
+  getNodeByActor:function(a)
+  {
+    var retNode;
+
+    var root = this.slot("_root");
+    if (!root)
+      return undefined;
+
+    root.exec("some",
+              function(n)
+              {
+                if (a == n.exec("actor"))
+                {
+                  retNode = n;
+
+                  return true;
+                }
+
+                return false;
+              });
+
+    return retNode;
   },
 
   addActor:function(a, pa)
@@ -106,7 +148,7 @@ var treeSceneTrait = Trait.extend({
       path = this.slot("_root");
     }
     else
-      path = this.slot("_actorsMap")[pa.identifier];
+      path = this.exec("getNodeByActor", pa);
 
     debug.assert(path, "parameter error in addActor");
 
@@ -123,18 +165,29 @@ var treeSceneTrait = Trait.extend({
   removeNode:function(node)
   {
     //update actorsmap
-    if (node.exec("actor"))
-    {
-      delete this.slot("_actorsMap")[node.exec("actor").identifier];
+    debug.assert(this.exec("isNodeInScene", node) == true, "remove nonexist node");
 
-      debug.assert(this.slot("_actorsMap")[node.exec("actor").identifier] == undefined, "logical error");
-    }
+    var runningLevel = require("director").director().exec("getLevel");
+    var bRunningScene = runningLevel && (runningLevel.exec("scene") == this);
 
     if (node.exec("parent"))
+    {
+      if (bRunningScene)
+        node.exec("onDeactive", this, runningLevel);
+      
+      node.exec("onExit", this);
+
       return node.exec("parent").exec("removeChild", node);
+    }
     else if (node && node == this.slot("_root"))
     {
       var oldOne = this.slot("_root");
+
+      if (bRunningScene)
+        oldOne.exec("onDeactive", this, runningLevel);
+      
+      oldOne.exec("onExit", this);
+
       var root = NTreeNode.create({scene:this});
       this.slot("_root", root);
       return oldOne;
@@ -143,16 +196,16 @@ var treeSceneTrait = Trait.extend({
 
   removeActor:function(actor)
   {
-    var node = this.slot("_actorsMap")[actor.identifier];
-    if (node)
-      return this.exec("removeNode", node);
+    var node = this.exec("getNodeByActor", actor);
+    debug.assert(node != undefined, "remove unexist actor");
+    return this.exec("removeNode", node);
   },
   
   // contianer must have push method
   filt:function(container, filter)
   {
-    return this.slot("_root").exec("serializeChildren", container, filter);
-  },
+    return this.slot("_root").exec("serializeChildrenActors", container, filter);
+  }
   
 });
 

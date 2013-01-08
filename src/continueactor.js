@@ -10,15 +10,13 @@ var StarModel = m.Model.extend(
   {
     initialize:function(param)
     {
-      debug.assert(param.r != undefined && param.fill != undefined, "param error");
-      
       this.execProto("initialize", param);
 
       this.slot("type", "star");
     },
   });
 
-function drawStar(ctx,r){
+function drawStar(ctx,r, fill, stroke){
   ctx.save();
   ctx.beginPath()
   ctx.moveTo(r,0);
@@ -31,19 +29,28 @@ function drawStar(ctx,r){
     }
   }
   ctx.closePath();
-  ctx.fill();
+  if (fill)
+    ctx.fill();
+  if (stroke)
+    ctx.stroke();
   ctx.restore();
 }
 
 var drawStarModel = function(m, painter)
 {
-  var ctx = painter.exec("sketchpad");
+  var ctx = painter.exec("getContext", "2d");
 
   ctx.save();
-  
-  ctx.fillStyle = m.slot("fill");
-  
-  drawStar(ctx, m.slot("r"));
+ 
+  var fill = m.slot("fill");
+  if (fill)
+    ctx.fillStyle = m.slot("fill");
+ 
+  var stroke = m.slot("stroke");
+  if (stroke)
+    ctx.strokeStyle = stroke;
+
+  drawStar(ctx, m.slot("r"), fill, stroke);
 
   ctx.restore();
 };
@@ -56,7 +63,7 @@ var continueActorCtor = function(level, star, totalStar, continuation, again)
   
   var sm = []
   ,   starModel = m.rotateModel(StarModel.create({r:12, fill:"red"}), -Math.PI/9.6)
-  ,   grayStarModel = m.rotateModel(StarModel.create({r:12, fill:"slategray"}), -Math.PI/9.6)
+  ,   grayStarModel = m.rotateModel(StarModel.create({r:12, stroke:"slategray"}), -Math.PI/9.6)
 
   for (var i = 0; i<totalStar; i++)
   {
@@ -87,7 +94,7 @@ var continueActorCtor = function(level, star, totalStar, continuation, again)
   var mouseClickedCB = function(evt, a)
   {
     var painter = require("director").director().exec("defaultPainter");
-    var canvas = painter.exec("sketchpad").canvas;
+     var canvas = painter.exec("sketchpad");
 
     switch(evt.type)
     {

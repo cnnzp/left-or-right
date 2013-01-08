@@ -7,15 +7,18 @@ var assert = require("debug").assert;
 
 var createObject = function(proto, properties)
 {
+  //在IE中，__proto__是一个普通的属性。为了尽量跟其他浏览器兼容，所以这里__proto__需要是enumerable:false, writable:true
   var newobj = Object.create(proto);
-  properties.forEach(function(val, key)
-                     {
-                       if (key == "__proto__")
-                         Object.defineProperty(newobj, key, {value:val, enumerable:false, writable:true});
-                       else
-                         newobj[key] = val;
-                     });
 
+  //注意：虽然我扩展了Object.prototype.forEach,但是这里不能用，因为properties有__proto__属性，这个可能是一个扩展了forEach方法的对象，此时properties.forEach就不会调用到Object.prototype.forEach
+  Object.keys(properties).forEach(function(key)
+                                  {
+                                    var val = properties[key];
+                                    if (key == "__proto__")
+                                      Object.defineProperty(newobj, key, {value:val, enumerable:false, writable:true});
+                                    else
+                                      newobj[key] = val;
+                                  });
   return newobj;
 };
 //----------------------------------
@@ -23,7 +26,7 @@ var TraitFuncs = {
   isTrait : function ()
   {
     return true;
-  },
+  }
 };
 
 function checkTrait(t)
@@ -72,7 +75,8 @@ function compose(traits)
     for(var mname in mtbl)
     {
       if (methods[mname] !== undefined 
-          && methods[mname] !== mtbl[mname])
+          && methods[mname] !== mtbl[mname]
+          && Object.isPropertyEnumerable(methods, mname) == true)
       {
         assert(false, "`" + mname + "' method conflicts!!!");
       }
@@ -171,7 +175,8 @@ function rename(trait, nameMap)
     theName = theName ? theName : mname;
 
     if (methods[theName] !== undefined 
-        && methods[theName] !== mtbl[mname])
+        && methods[theName] !== mtbl[mname]
+        && Object.isPropertyEnumerable(methods, theName) == true)
     {
       assert(false, "`" + theName + "' name conflicts!!!");
     }
@@ -213,6 +218,35 @@ function exclude(trait, nameList)
   return nt;
 }
 
+function select(trait, nameList)
+{
+  checkTrait(trait);
+
+  var methods = {};
+  var usedTraits = {};
+
+  var nt = createObject(TraitFuncs, {
+    _methods: methods,
+    _usedTraits: usedTraits,
+    __proto__: TraitFuncs
+  });
+
+  usedTraits[trait.identifier] = trait;
+
+  var mtbl = trait._methods;
+  
+  for (var i = 0; i < nameList.length; ++i)
+  {
+    var m = mtbl[nameList[i]];
+    if(null != m)
+    { 
+      methods[nameList[i]] = m;
+    }
+  }
+
+  return nt;
+}
+
 function alias(trait, nameMap)
 {
   checkTrait(trait);
@@ -238,7 +272,8 @@ function alias(trait, nameMap)
   {
     var newName = nameMap[theName];
     if (methods[newName] !== undefined 
-        && methods[newName] !== mtbl[theName])
+        && methods[newName] !== mtbl[theName]
+        && Object.isPropertyEnumerable(methods, theName) == true)
     {
       assert(false, "`" + newName + "' name conflicts!!!");
     }
@@ -300,6 +335,11 @@ TraitFuncs.exclude = function (nameList)
   return exclude(this, nameList);
 }
 
+TraitFuncs.select = function (nameList)
+{
+  return select(this, nameList);
+}
+
 TraitFuncs.alias = function (nameMap)
 {
   return alias(this, nameMap);
@@ -349,6 +389,8 @@ function useTraits(o, protomethods, traits, extendMethods)
 
   o._usedTraits[innerTrait.identifier] = innerTrait;
 
+  o._aggregateTrait = innerTrait;
+
   return o;
 }
 
@@ -363,7 +405,7 @@ function extendObjectByTrait(o, trait)
             {
               var tm = trait._methods[k];
               
-              assert(!oms[k], "name flict:"+k);
+              //assert(oms[k] == undefined || (Object.isPropertyEnumerable(oms, k) == false), "name flict:"+k);
 
               oms[k] = {
                 _func:tm._func,
@@ -427,6 +469,11 @@ var Entity = {
   proto : function()
   {
     return this.__proto__;
+  },
+
+  aggregateTrait : function ()
+  {
+    return this._aggregateTrait;
   },
   
   execProto: function (methodName)
@@ -500,7 +547,7 @@ var Entity = {
   ownSlotKeys:function()
   {
     return Object.keys(this._shareStore);
-  },
+  }
 };
 
 exports.Trait = Trait;
