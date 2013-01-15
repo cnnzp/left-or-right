@@ -875,29 +875,51 @@ var paintPaths = function(painter, pstns, strokeStyle)
   var ctx = painter.exec("getContext", "2d");
    
    ctx.save();
-   
+  ctx.lineWidth = 3;
+
    if (strokeStyle)
       ctx.strokeStyle = strokeStyle;
    
    if (pstns.length == 0)
-      return;
-   
-  ctx.beginPath();
-  ctx.fillStyle = strokeStyle;
-  for (var i = 0; i<pstns.length-5; i++)
   {
-    ctx.arc(pstns[i].x, pstns[i].y, 3, Math.PI*2, 0);
+    ctx.restore();
+      return;
   }
-  ctx.stroke();
 
-  ctx.closePath();
+  // ctx.beginPath();
+  // ctx.fillStyle = strokeStyle;
+
+  var bool1 = true;
+  for (var i = 0; i<pstns.length; i++)
+  {
+    if (bool1 == true)
+    {
+      bool1 = false;
+
+      ctx.beginPath();
+      ctx.moveTo(pstns[i].x, pstns[i].y);
+    }
+    else
+    {
+      bool1 = true;
+
+      ctx.lineTo(pstns[i].x, pstns[i].y);
+      ctx.stroke();
+      ctx.closePath();
+    }
+    // ctx.arc(pstns[i].x, pstns[i].y, 3, Math.PI*2, 0);
+
+  }
+  // ctx.stroke();
+
+  // ctx.closePath();
   
   ctx.restore();
 };
 
 var paint = false;
 
-Switcher.prototype.paint = function(painter)
+Switcher.prototype.paint = function(painter, lineColor)
 {
   if (this.mpstns == undefined || (this.curBranch == this.b1 && this.b1pstns == undefined) || 
       (this.curBranch == this.b2 && this.b2pstns  == undefined))
@@ -952,8 +974,8 @@ Switcher.prototype.paint = function(painter)
     //  b2 = bStartLen / bTotalLength;
    }
    
-   var mpstns = getPathPstns(this.m, mStartLen, mEndLen, 50);
-   var bpstns = getPathPstns(this.curBranch, bStartLen, bEndLen, 50);
+   var mpstns = getPathPstns(this.m, mStartLen, mEndLen, 14);
+   var bpstns = getPathPstns(this.curBranch, bStartLen, bEndLen, 14);
 
     if (this.curBranch == this.b1)
       this.b1pstns = bpstns;
@@ -991,12 +1013,12 @@ Switcher.prototype.paint = function(painter)
   var c = "darkgreen";
   var mpstns = this.mpstns;
   var bpstns = this.curBranch == this.b1 ? this.b1pstns : this.b2pstns;
-  paintPaths(painter, this.mpstns, c);
-  paintPaths(painter, bpstns, c);
+  //paintPaths(painter, this.mpstns, c);
+  paintPaths(painter, bpstns, lineColor);
    
    var arrowWidth = 10, arrowHeight = 10;
-   paintArrow1(painter, mpstns[mpstns.length-5], mpstns[mpstns.length-1], arrowWidth, arrowHeight, c);
-   paintArrow1(painter, bpstns[bpstns.length-5], bpstns[bpstns.length-1], arrowWidth, arrowHeight, c);
+   // paintArrow1(painter, mpstns[mpstns.length-5], mpstns[mpstns.length-1], arrowWidth, arrowHeight, c);
+   // paintArrow1(painter, bpstns[bpstns.length-5], bpstns[bpstns.length-1], arrowWidth, arrowHeight, c);
 };
 
 /*

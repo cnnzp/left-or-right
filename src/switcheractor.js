@@ -57,14 +57,30 @@ var createSwitchModel = function(normalStyle, normalStrokeStyle, lineColor, radi
     
     switcher.curBranch.paint(painter, lineColor);
     
-    ctx.setLineDash([]);
+    if (ctx.setLineDash)
+      ctx.setLineDash([]);
     switcher.m.paint(painter, lineColor);
-    
-    ctx.setLineDash([3,3]);
-    if (switcher.curBranch == switcher.b1)
-      switcher.b2.paint(painter, lineColor);
+
+    if (ctx.setLineDash)
+    {
+      ctx.setLineDash([3,3]);
+      if (switcher.curBranch == switcher.b1)
+        switcher.b2.paint(painter, lineColor);
+      else
+        switcher.b1.paint(painter, lineColor);
+    }
     else
-      switcher.b1.paint(painter, lineColor);
+    {
+      var oldCurBranch = switcher.curBranch;
+      switcher.curBranch = switcher.curBranch == switcher.b1 ? switcher.b2 : switcher.b1;
+      switcher.paint(painter, lineColor);
+      switcher.curBranch = oldCurBranch;
+      // if (switcher.curBranch == switcher.b1)
+      //   switcher.b2.paint(painter, lineColor);
+      // else
+      //   switcher.b1.paint(painter, lineColor);
+    }
+
     ctx.restore();
   };
 
@@ -164,5 +180,6 @@ var createAllSwitcherActors = function(ps, level)
 
 exports.SwitcherActor = SwitcherActor;
 exports.createAllSwitcherActors = createAllSwitcherActors;
+
 
 }};
