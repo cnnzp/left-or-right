@@ -5,6 +5,8 @@ In busy season, the correct scheduling of trains is not easy, you must prevent t
 Each train has its own destination which marked by the solid circle with same color.
 Click branches marked by green rectangles to control the track of trains.
 
+
+
 Getting Started
 ------------
 Click [here](http://cnnzp.github.com/left-or-right) to play.
